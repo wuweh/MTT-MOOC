@@ -1,26 +1,24 @@
 % This home assignment is about tracking a single target in missed
-% detection and clutter. We are going to consider a single target moving in
-% a 2D region with nearly constant velocity.
-clear
-close all
-clc
+% detection and clutter. We consider a simple scenario where a single target
+% moves in a 2D region with nearly constant velocity.
+clear; close all; clc
 
 dbstop if error
 
 P_D = 0.9;
 lambda_c = 10;
 range_c = [-100 100;-100 100];
-sensor_model = model.sensormodel(P_D,lambda_c,range_c);
+sensor_model = modelgen.sensormodel(P_D,lambda_c,range_c);
 
 nbirths = 1;
 K = 100;
 xstart = [0;0;0;0];
-Pstart = 0.1*eye(4);
 
-ground_truth = model.groundtruth(nbirths,xstart,Pstart,1,K+1,K);
+ground_truth = modelgen.groundtruth(nbirths,xstart,1,K+1,K);
 
+T = 1;
 sigma_q = 0.1;
-motion_model = motionmodel.cv2Dmodel(sigma_q);
+motion_model = motionmodel.cv2Dmodel(T,sigma_q);
 sigma_r = 0.1;
 meas_model = measmodel.cv2Dmeasmodel(sigma_r);
 
@@ -30,6 +28,7 @@ measdata = measdatagen(targetdata,sensor_model,meas_model);
 tracker = singletargetracker();
 P_G = 0.999;
 
+Pstart = 0.1*eye(4);
 tracker = tracker.initiator(P_G,meas_model.d,xstart,Pstart);
 nearestNeighborEstimates = cell(K,1);
 squareError = zeros(K,motion_model.d);
