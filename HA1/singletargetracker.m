@@ -3,9 +3,9 @@ classdef singletargetracker
     %target in clutter and missed detection.
     
     properties
-        gating      % specify gating parameter
-        x           % target state mean
-        P           % target state covariance
+        gating  % specify gating parameter
+        x       % target state mean --- (target state dimension) x 1 vector
+        P       % target state covariance --- (target state dimension) x (target state dimension) matrix
     end
     
     methods
@@ -31,8 +31,55 @@ classdef singletargetracker
             obj.P = motionmodel.Q+motionmodel.A*obj.P*motionmodel.A';
         end
         
-        function obj = nearestNeighborLinearKalmanUpdate(obj, z, measmodel)
-            %NEARESTNEIGHBORLINEARKALMANUPDATE performs nearest neighbor
+        function obj = linearKalmanUpdate(obj, measmodel)
+            %LINEARKALMANUPDATE performs linear Kalman update step
+            S = measmodel.H*obj.P*measmodel.H' + measmodel.R;
+            K = obj.P*measmodel.H'/S;
+            obj.x = obj.x + K*(z - measmodel.H*obj.x);
+            obj.P = (eye(size(obj.x,1)) - K*measmodel.H)*obj.P;   
+        end
+        
+        function z_ingate = Gating(obj, z, measmodel)
+            %GATING performs ellipsoidal gating
+            %INPUT:  z: measurements --- (measurement dimension) x (number
+            %of measurements) matrix
+            %OUTPUT: z_ingate: measurements in the gate --- (measurement 
+            %dimension) x (number of measurements in the gate) matrix
+            zlength = size(z,2);
+            in_gate = false(zlength,1);
+            S = measmodel.H*obj.P*measmodel.H' + measmodel.R;
+            nu = z - measmodel.H*repmat(obj.x,[1 zlength]);
+            dist= sum((inv(chol(S))'*nu).^2);
+            in_gate(dist<obj.gating.size) = true;
+            z_ingate = z(:,in_gate);
+        end
+        
+        function meas_likelihood = measLikelihood(obj, z, measmodel)
+            %MEASLIKELIHOOD calculates the measurement update likelihood,
+            %i.e., N(y;\hat{y},S).
+            %INPUT:  z: measurements --- (measurement dimension) x (number
+            %of measurements) matrix
+            %OUTPUT: meas_likelihood: measurement update likelihood for
+            %each measurement --- (measurement dimension) x 1 vector
+            S = measmodel.H*obj.P*measmodel.H' + measmodel.R;
+            meas_likelihood = mvnpdf(z',measmodel.H*obj.x,S);
+        end
+        
+        function nearest_neighbor_meas = nearestNeighbor(z, meas_likelihood)
+            %NEARESTNEIGHBOR finds the measurement with the highest
+            %measurement update likelihood
+            %INPUT:  z: measurements --- (measurement dimension) x (number
+            %of measurements) matrix
+            %        meas_likelihood: measurement update likelihood for
+            %each measurement --- (measurement dimension) x 1 vector
+            %OUTPUT: nearest_neighbor_meas --- single measurement of size 
+            %(measurement dimension) x 1
+            [~, nearest_neighbor_assoc] = max(meas_likelihood);
+            nearest_neighbor_meas = z(:,nearest_neighbor_assoc);
+        end
+        
+        function obj = nearestNeighborAssocLinearKalmanUpdate(obj, z, measmodel)
+            %NEARESTNEIGHBORASSOCLINEARKALMANUPDATE performs nearest neighbor
             %data association and linear Kalman filter update
             %INPUT: z: measurements --- (measurement dimension) x (number
             %of measurements) matrix
@@ -92,15 +139,40 @@ classdef singletargetracker
                 
                 %Normalise likelihoods
                 mu = mu/sum(mu);
-                %Calculate the equivalent measurement
-                z_eq = mu(1)*measmodel.H*obj.x + z(:,meas_update_idx)*mu(2:end);
-                obj.x = obj.x + K*(z_eq-measmodel.H*obj.x);
+%                 %Calculate the equivalent measurement
+%                 z_eq = mu(1)*measmodel.H*obj.x + z(:,meas_update_idx)*mu(2:end);
+%                 obj.x = obj.x + K*(z_eq-measmodel.H*obj.x);
+
+                %Calculate merged mean
+                obj.x = x_temp*mu;
+                %Calculate merged covariance
                 for i = 1:num_meas_ingate+1
                     x_diff = x_temp(:,i)-obj.x;
-                    obj.P = mu(i)*P_temp(:,:,i) + mu(i)*(x_diff*x_diff');
+                    obj.P = mu(i)*(P_temp(:,:,i) + x_diff*x_diff');
                 end
             end
-            
+        end
+        
+        function [x_hat, P_hat] = GaussianMixtureReduction(w, x, P)
+            %GAUSSIANMIXTUREREDUCTION: approximate a Gaussian mixture
+            %density as a single Gaussian
+            %INPUT: w: normalised weight of Gaussian components --- (number
+            %of Gaussians) x 1 vector
+            %       x: means of Gaussian components --- (variable dimension)
+            %       x (number of Gaussians) matrix
+            %       P: variances of Gaussian components --- (variable
+            %       dimension) x (variable dimension) x (number of Gaussians) matrix
+            %OUTPUT:x_hat: approximated mean --- (variable dimension) x 1
+            %vector
+            %       P_hat: approximated covariance --- (variable dimension)
+            %       x (variable dimension) matrix
+            x_hat = x*w;
+            numGaussian = length(w);
+            P_hat = zeros(size(P(:,:,1)));
+            for i = 1:numGaussian
+                x_diff = x(:,i) - x_hat;
+                P_hat = w*(P(:,:,i) + x_diff*x_diff');
+            end
         end
         
     end
