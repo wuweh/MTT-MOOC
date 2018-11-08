@@ -51,6 +51,21 @@ for k = 1:K
 end
 probDataAssocLinearRMSE = sqrt(mean(squareError));
 
+tracker = tracker.initiator(P_G,meas_model.d,xstart,Pstart);
+multiHypothesesEstimates = cell(K,1);
+squareError = zeros(K,motion_model.d);
+
+hypothesesWeight = 1;
+multiHypotheses = struct('x',tracker.x,'P',tracker.P);
+for k = 1:K
+    [tracker, hypothesesWeight, multiHypotheses] = ...
+        multiHypothesesTracker(tracker, hypothesesWeight, multiHypotheses, measdata.Z{k}, sensor_model, motion_model, meas_model);
+    squareError(k,:) = (tracker.x - targetdata.X{k}).^2;
+    multiHypothesesEstimates{k}.x = tracker.x;
+    multiHypothesesEstimates{k}.P = tracker.P;
+end
+multiHypothesesRMSE = sqrt(mean(squareError));
+
 
 %% True target data generation
 % In this part, you are going to create the groundtruth data. For this

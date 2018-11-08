@@ -6,10 +6,9 @@ classdef modelgen < handle
             %SENSORMODEL generates the sensor model
             %INPUT:     P_D: target detection probability --- scalar
             %           lambda_c: average number of clutter measurements
-            %           --- scalar
-            %           per time scan, Poisson distributed --- scalar
+            %                   per time scan, Poisson distributed --- scalar
             %           range_c: range of surveillance area --- 2 x 2
-            %           matrix of the form [xmin xmax;ymin ymax]
+            %                   matrix of the form [xmin xmax;ymin ymax]
             %OUTPUT:    obj.pdf_c: clutter (Poisson) intensity --- scalar
             obj.P_D = P_D;
             obj.lambda_c = lambda_c;
@@ -21,11 +20,11 @@ classdef modelgen < handle
             %GROUNDTRUTH specifies the parameters to generate groundtruth
             %INPUT:     nbirths: number of targets to be tracked --- scalar
             %           xstart: target initial states --- (target state
-            %           dimension) x nbirths matrix
+            %                   dimension) x nbirths matrix
             %           tbirth: time step when targets are born --- (target state
-            %           dimension) x 1 vector 
+            %                   dimension) x 1 vector 
             %           tdeath: time step when targets die --- (target state
-            %           dimension) x 1 vector
+            %                   dimension) x 1 vector
             %           K: total tracking time --- scalar
             obj.nbirths = nbirths;
             obj.xstart = xstart;

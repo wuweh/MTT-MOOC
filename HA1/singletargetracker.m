@@ -1,11 +1,13 @@
 classdef singletargetracker
     %SINGLETARGETTRACKER is a class containing functions to track a single
-    %target in clutter and missed detection.
+    %target in clutter and missed detection. NO track initiation&deletion
+    %logic
     
     properties
-        gating  % specify gating parameter
-        x       % target state mean --- (target state dimension) x 1 vector
-        P       % target state covariance --- (target state dimension) x (target state dimension) matrix
+        gating  %specify gating parameter
+        x       %target state mean --- (target state dimension) x 1 vector
+        P       %target state covariance --- (target state dimension) x (target state dimension) matrix
+        hypothesis_reduction %specify hypothesis reduction parameter
     end
     
     methods
@@ -15,21 +17,69 @@ classdef singletargetracker
             %INPUT: P_G: gating size in percentage --- scalar
             %       m_d: measurement dimension --- scalar
             %       x_0: mean of target initial state --- (target state
-            %       dimension) x 1 vector
+            %           dimension) x 1 vector
             %       P_0: covariance of target initial state (target state
-            %       dimension) x (target state dimension) matrix
+            %           dimension) x (target state dimension) matrix
             %OUTPUT:  obj.gating.size: gating size --- scalar
+            %         obj.hypothesis_reduction.wmin: allowed minimum hypothesis
+            %                                       weight --- scalar
+            %         obj.hypothesis_reduction.merging_threshold: merging
+            %                                                   threshold --- scalar
+            %         obj.hypothesis_reduction.M: allowed maximum number of
+            %                                       hypotheses --- scalar
             obj.gating.P_G = P_G;
             obj.gating.size = chi2inv(P_G,m_d);
+            obj.hypothesis_reduction.wmin = 1e-4;
+            obj.hypothesis_reduction.merging_threshold = 2;
+            obj.hypothesis_reduction.M = 100;
             obj.x = x_0;
             obj.P = P_0;
+        end
+        
+        function [obj, hypothesesWeight, multiHypotheses] = multiHypothesesTracker(obj, ...
+                hypothesesWeight, multiHypotheses, z, sensormodel, motionmodel, measmodel)
+            %MULTIHYPOTHESESTRACKER tracks a single target using multiple
+            %hypotheses
+            %INPUT: hypothesesWeight: the weights of different hypotheses
+            %                       --- (number of hypotheses) x 1 vector
+            %       multiHypotheses: (number of hypotheses) x 1 structure
+            %                       with two fields: x: target state mean; 
+            %                       P: target state covariance
+            %       z: measurements --- (measurement dimension) x (number
+            %           of measurements) matrix
+            
+            %Generate multiple new hypotheses
+            [hypothesesWeight, multiHypotheses] = ...
+                multiHypothesesPropagation(hypothesesWeight, multiHypotheses, ...
+                z, obj.gating, sensormodel, motionmodel, measmodel);
+            
+            %Prune hypotheses with weight smaller than threshold
+            indices_keeped = hypothesesWeight > obj.hypothesis_reduction.wmin;
+            hypothesesWeight = hypothesesWeight(indices_keeped);
+            multiHypotheses = multiHypotheses(indices_keeped);
+            
+            %Keep at most M hypotheses with the highest weights
+            if length(hypothesesWeight) > obj.hypothesis_reduction.M
+                [hypothesesWeight, sorted_idx] = sort(hypothesesWeight,'descend');
+                hypothesesWeight = hypothesesWeight(1:obj.hypothesis_reduction.M);
+                multiHypotheses = multiHypotheses(sorted_idx(1:obj.hypothesis_reduction.M));
+            end
+            
+            %Merge hypotheses within small enough Mahalanobis distance 
+            [hypothesesWeight,multiHypotheses] = ...
+                hypothesesMerging(hypothesesWeight,multiHypotheses,obj.hypothesis_reduction.merging_threshold);
+            
+            %Extract target state from the hypothesis with the highest weight
+            [~,idx] = max(hypothesesWeight);
+            obj.x = multiHypotheses(idx).x;
+            obj.P = multiHypotheses(idx).P;
         end
         
         function obj = nearestNeighborAssocTracker(obj, z, motionmodel, measmodel)
             %NEARESTNEIGHBORASSOCTRACKER tracks a single target
             %using nearest neighbor association and linear kalman filter
             %INPUT: z: measurements --- (measurement dimension) x (number
-            %of measurements) matrix
+            %           of measurements) matrix
             [obj.x, obj.P] = linearKalmanPredict(obj.x, obj.P, motionmodel);
             z_ingate = Gating(obj.x, obj.P, z, measmodel, obj.gating.size);
             if ~isempty(z_ingate)
@@ -43,7 +93,7 @@ classdef singletargetracker
             %NEARESTNEIGHBORASSOCLINEARKALMANUPDATE performs nearest neighbor
             %data association and linear Kalman filter update
             %INPUT: z: measurements --- (measurement dimension) x (number
-            %of measurements) matrix
+            %       of measurements) matrix
             S = measmodel.H*obj.P*measmodel.H' + measmodel.R;
             nu = z - measmodel.H*repmat(obj.x,[1 size(z,2)]);
             
@@ -65,8 +115,12 @@ classdef singletargetracker
             %PROBDATAASSOCTRACKER tracks a single target
             %using probalistic data association and linear kalman filter
             %INPUT: z: measurements --- (measurement dimension) x (number
-            %of measurements) matrix
+            %       of measurements) matrix
+            
+            %Prediction
             [obj.x, obj.P] = linearKalmanPredict(obj.x, obj.P, motionmodel);
+            
+            %Gating
             z_ingate = Gating(obj.x, obj.P, z, measmodel, obj.gating.size);
             
             if ~isempty(z_ingate)
@@ -76,18 +130,14 @@ classdef singletargetracker
                 x_temp = zeros(motionmodel.d,num_meas_ingate+1);
                 P_temp = zeros(motionmodel.d,motionmodel.d,num_meas_ingate+1);
                 
-                %Missed detection
-                mu(1) = (1-missDetectLikelihood(sensormodel.P_D,...
-                    obj.gating.P_G))*(sensormodel.lambda_c)*(sensormodel.pdf_c);
-                x_temp(:,1) = obj.x;
-                P_temp(:,:,1) = obj.P;
+                %Missed detection hypothesis
+                [miss_detect_likelihood,x_temp(:,1),P_temp(:,:,1)] = ...
+                    missDetectHypothesis(obj.x,obj.P,sensormodel.P_D,obj.gating.P_G);
+                mu(1) = miss_detect_likelihood*(sensormodel.lambda_c)*(sensormodel.pdf_c);
                 
-                %Calculate measurement update likelihoods
-                mu(2:end) = measLikelihood(obj.x, obj.P, z_ingate, measmodel);
-                %For each measurment in the gate, perform Kalman update
-                for i = 1:num_meas_ingate
-                    [x_temp(:,i+1), P_temp(:,:,i+1)] = linearKalmanUpdate(obj.x, obj.P, z(:,i), measmodel);
-                end
+                %Measurement update hypothesis
+                [mu(2:end),x_temp(:,2:end),P_temp(:,:,2:end)] = ...
+                    measUpdateHypothesis(obj.x,obj.P, z_ingate, measmodel);
                 
                 %Normalise likelihoods
                 mu = mu/sum(mu);
@@ -101,7 +151,7 @@ classdef singletargetracker
             %PROBDATAASSOCLINEARKALMANUPDATE performs probablistic data
             %association and linear kalman update
             %INPUT: z: measurements --- (measurement dimension) x (number
-            %of measurements) matrix
+            %       of measurements) matrix
             S = measmodel.H*obj.P*measmodel.H' + measmodel.R;
             nu = z - measmodel.H*repmat(obj.x,[1 size(z,2)]);
             
@@ -123,8 +173,7 @@ classdef singletargetracker
                 P_temp = zeros(s_d,s_d,num_meas_ingate+1);
                 
                 %Missed detection
-                mu(1) = (1-missDetectLikelihood(sensormodel.P_D,...
-                    obj.gating.P_G))*(sensormodel.lambda_c)*(sensormodel.pdf_c);
+                mu(1) = (1-sensormodel.P_D*obj.gating.P_G)*(sensormodel.lambda_c)*(sensormodel.pdf_c);
                 x_temp(:,1) = obj.x;
                 P_temp(:,:,1) = obj.P;
                 
