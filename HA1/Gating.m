@@ -8,7 +8,12 @@ zlength = size(z,2);
 in_gate = false(zlength,1);
 S = measmodel.H*P*measmodel.H' + measmodel.R;
 nu = z - measmodel.H*repmat(x,[1 zlength]);
-dist= sum((inv(chol(S))'*nu).^2);
-in_gate(dist<gating_size) = true;
-z_ingate = z(:,in_gate);
+[Vs,p] = chol(S);
+if p == 1
+    z_ingate = [];
+else
+    dist= sum((inv(Vs)'*nu).^2);
+    in_gate(dist<gating_size) = true;
+    z_ingate = z(:,in_gate);
+end
 end

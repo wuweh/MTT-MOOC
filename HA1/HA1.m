@@ -5,14 +5,16 @@ clear; close all; clc
 
 dbstop if error
 
-P_D = 0.9;
-lambda_c = 10;
+P_D = 0.7;
+lambda_c = 30;
 range_c = [-100 100;-100 100];
 sensor_model = modelgen.sensormodel(P_D,lambda_c,range_c);
+P_G = 0.99;
 
 nbirths = 1;
 K = 100;
 xstart = [0;0;0;0];
+Pstart = 0.1*eye(4);
 
 ground_truth = modelgen.groundtruth(nbirths,xstart,1,K+1,K);
 
@@ -25,47 +27,40 @@ meas_model = measmodel.cv2Dmeasmodel(sigma_r);
 targetdata = targetdatagen(ground_truth,motion_model);
 measdata = measdatagen(targetdata,sensor_model,meas_model);
 
+%Initiate class
 tracker = singletargetracker();
-P_G = 0.999;
 
-Pstart = 0.1*eye(4);
+%NN tracker
 tracker = tracker.initiator(P_G,meas_model.d,xstart,Pstart);
 nearestNeighborEstimates = cell(K,1);
-squareError = zeros(K,motion_model.d);
 for k = 1:K
     tracker = nearestNeighborAssocTracker(tracker, measdata.Z{k}, motion_model, meas_model);
-    squareError(k,:) = (tracker.x - targetdata.X{k}).^2;
-    nearestNeighborEstimates{k}.x = tracker.x;
-    nearestNeighborEstimates{k}.P = tracker.P;
+    nearestNeighborEstimates{k} = tracker.x;
 end
-nearestNeighborRMSE = sqrt(mean(squareError));
+nearestNeighborRMSE = RMSE(cell2mat(nearestNeighborEstimates'),cell2mat(targetdata.X'));
 
+%PDA tracker
 tracker = tracker.initiator(P_G,meas_model.d,xstart,Pstart);
 probDataAssocEstimates = cell(K,1);
-squareError = zeros(K,motion_model.d);
 for k = 1:K
     tracker = probDataAssocTracker(tracker, measdata.Z{k}, sensor_model, motion_model, meas_model);
-    squareError(k,:) = (tracker.x - targetdata.X{k}).^2;
-    probDataAssocEstimates{k}.x = tracker.x;
-    probDataAssocEstimates{k}.P = tracker.P;
+    probDataAssocEstimates{k} = tracker.x;
 end
-probDataAssocLinearRMSE = sqrt(mean(squareError));
+probalisticDataAssocRMSE = RMSE(cell2mat(probDataAssocEstimates'),cell2mat(targetdata.X'));
 
+%Multi-hypothesis tracker
 tracker = tracker.initiator(P_G,meas_model.d,xstart,Pstart);
 multiHypothesesEstimates = cell(K,1);
-squareError = zeros(K,motion_model.d);
-
+%Initialize hypothesesWeight and multiHypotheses struct
 hypothesesWeight = 1;
 multiHypotheses = struct('x',tracker.x,'P',tracker.P);
 for k = 1:K
     [tracker, hypothesesWeight, multiHypotheses] = ...
-        multiHypothesesTracker(tracker, hypothesesWeight, multiHypotheses, measdata.Z{k}, sensor_model, motion_model, meas_model);
-    squareError(k,:) = (tracker.x - targetdata.X{k}).^2;
-    multiHypothesesEstimates{k}.x = tracker.x;
-    multiHypothesesEstimates{k}.P = tracker.P;
+        multiHypothesesTracker(tracker, hypothesesWeight, multiHypotheses, ...
+        measdata.Z{k}, sensor_model, motion_model, meas_model);
+    multiHypothesesEstimates{k} = tracker.x;
 end
-multiHypothesesRMSE = sqrt(mean(squareError));
-
+multiHypothesesRMSE = RMSE(cell2mat(multiHypothesesEstimates'),cell2mat(targetdata.X'));
 
 %% True target data generation
 % In this part, you are going to create the groundtruth data. For this
