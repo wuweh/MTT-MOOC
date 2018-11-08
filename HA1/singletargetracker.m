@@ -70,22 +70,22 @@ classdef singletargetracker
             z_ingate = Gating(obj.x, obj.P, z, measmodel, obj.gating.size);
             
             if ~isempty(z_ingate)
-                num_meas_ingate = size(z_ingate,2);
-                S = measmodel.H*obj.P*measmodel.H' + measmodel.R;
-                
                 %Allocate memory
+                num_meas_ingate = size(z_ingate,2);
                 mu = zeros(num_meas_ingate+1,1);
                 x_temp = zeros(motionmodel.d,num_meas_ingate+1);
                 P_temp = zeros(motionmodel.d,motionmodel.d,num_meas_ingate+1);
                 
                 %Missed detection
-                mu(1) = (1-sensormodel.P_D*obj.gating.P_G)*(sensormodel.lambda_c)*(sensormodel.pdf_c);
+                mu(1) = (1-missDetectLikelihood(sensormodel.P_D,...
+                    obj.gating.P_G))*(sensormodel.lambda_c)*(sensormodel.pdf_c);
                 x_temp(:,1) = obj.x;
                 P_temp(:,:,1) = obj.P;
                 
+                %Calculate measurement update likelihoods
+                mu(2:end) = measLikelihood(obj.x, obj.P, z_ingate, measmodel);
                 %For each measurment in the gate, perform Kalman update
                 for i = 1:num_meas_ingate
-                    mu(i+1) = mvnpdf(z(:,i),measmodel.H*obj.x,S);
                     [x_temp(:,i+1), P_temp(:,:,i+1)] = linearKalmanUpdate(obj.x, obj.P, z(:,i), measmodel);
                 end
                 
@@ -123,7 +123,8 @@ classdef singletargetracker
                 P_temp = zeros(s_d,s_d,num_meas_ingate+1);
                 
                 %Missed detection
-                mu(1) = (1-sensormodel.P_D*obj.gating.P_G)*(sensormodel.lambda_c)*(sensormodel.pdf_c);
+                mu(1) = (1-missDetectLikelihood(sensormodel.P_D,...
+                    obj.gating.P_G))*(sensormodel.lambda_c)*(sensormodel.pdf_c);
                 x_temp(:,1) = obj.x;
                 P_temp(:,:,1) = obj.P;
                 

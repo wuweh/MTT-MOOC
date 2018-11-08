@@ -66,7 +66,6 @@ probDataAssocLinearRMSE = sqrt(mean(squareError));
 % $\sigma_r = 0.5$. The target detection probability is assumed to be constant 
 % $P_D = 0.9$. Generate the target-generated measurements for each target state.
 
-
 %% Clutter measurement generation
 % In this part, you are going to generate the clutter measurements. We
 % assume that the number of clutter measurements per time step is Poisson
@@ -76,13 +75,3 @@ probDataAssocLinearRMSE = sqrt(mean(squareError));
 % receive at integer time instants in [0, 99s]. Now add the target-generated
 % measurements to the 100 sets of clutter by selecting t_birth as the
 % starting time
-
-
-
-
-
-
-
-
-
-
