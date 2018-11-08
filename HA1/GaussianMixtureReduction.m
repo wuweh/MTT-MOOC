@@ -16,6 +16,6 @@ numGaussian = length(w);
 P_hat = zeros(size(P(:,:,1)));
 for i = 1:numGaussian
     x_diff = x(:,i) - x_hat;
-    P_hat = w(i).*(P(:,:,i) + x_diff*x_diff');
+    P_hat = P_hat + w(i).*(P(:,:,i) + x_diff*x_diff');
 end
 end

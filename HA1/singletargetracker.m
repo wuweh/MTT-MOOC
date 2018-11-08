@@ -29,9 +29,9 @@ classdef singletargetracker
             %                                       hypotheses --- scalar
             obj.gating.P_G = P_G;
             obj.gating.size = chi2inv(P_G,m_d);
-            obj.hypothesis_reduction.wmin = 1e-3;
-            obj.hypothesis_reduction.merging_threshold = 1;
-            obj.hypothesis_reduction.M = 100;
+            obj.hypothesis_reduction.wmin = 1e-4;
+            obj.hypothesis_reduction.merging_threshold = 0.5;
+            obj.hypothesis_reduction.M = 10;
             obj.x = x_0;
             obj.P = P_0;
         end
@@ -66,8 +66,8 @@ classdef singletargetracker
             end
             
             %Merge hypotheses within small enough Mahalanobis distance 
-%             [hypothesesWeight,multiHypotheses] = ...
-%                 hypothesesMerging(hypothesesWeight,multiHypotheses,obj.hypothesis_reduction.merging_threshold);
+            [hypothesesWeight,multiHypotheses] = ...
+                hypothesesMerging(hypothesesWeight,multiHypotheses,obj.hypothesis_reduction.merging_threshold);
             
             %Extract target state from the hypothesis with the highest weight
             [~,idx] = max(hypothesesWeight);

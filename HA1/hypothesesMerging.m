@@ -29,13 +29,10 @@ while ~isempty(I)
         end
     end
     
-    %Perform Gaussian mixture reduction
+    %Merge hypotheses within small Mahalanobis distance
     hypothesesWeightMerged(el,1) = sum(hypothesesWeight(Ij));
-    [multiHypothesesMerged(el).x, multiHypothesesMerged(el).P] = ...
-        GaussianMixtureReduction(hypothesesWeight(Ij), [multiHypotheses(Ij).x], ...
-        reshape([multiHypotheses(Ij).P],[s_d,s_d,length(Ij)]));
-    multiHypothesesMerged(el).x = multiHypothesesMerged(el).x./hypothesesWeightMerged(el);
-    multiHypothesesMerged(el).P = multiHypothesesMerged(el).P./hypothesesWeightMerged(el);
+    multiHypothesesMerged(el).x = wsumvec(hypothesesWeight(Ij),[multiHypotheses(Ij).x],s_d)/hypothesesWeightMerged(el,1);
+    multiHypothesesMerged(el).P = wsummat(hypothesesWeight(Ij),reshape([multiHypotheses(Ij).P],[s_d,s_d,length(Ij)]),s_d)/hypothesesWeightMerged(el,1);
     
     I = setdiff(I,Ij);
     hypothesesWeight(Ij,1) = -1;
@@ -45,4 +42,15 @@ end
 %Normalize the weights
 hypothesesWeightMerged = hypothesesWeightMerged/sum(hypothesesWeightMerged);
 
+end
+
+function out = wsumvec(w,vecstack,xdim)
+    wmat = repmat(w',[xdim,1]);
+    out  = sum(wmat.*vecstack,2);
+end
+
+function out = wsummat(w,matstack,xdim)
+    w = reshape(w,[1,1,size(w)]);
+    wmat = repmat(w,[xdim,xdim,1]);
+    out = sum(wmat.*matstack,3);
 end

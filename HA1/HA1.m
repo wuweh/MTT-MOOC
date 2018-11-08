@@ -9,19 +9,19 @@ P_D = 0.7;
 lambda_c = 30;
 range_c = [-100 100;-100 100];
 sensor_model = modelgen.sensormodel(P_D,lambda_c,range_c);
-P_G = 0.99;
+P_G = 0.999;
 
 nbirths = 1;
 K = 100;
-xstart = [0;0;0;0];
-Pstart = 0.1*eye(4);
+xstart = [0;1;0;1];
+Pstart = eye(4);
 
 ground_truth = modelgen.groundtruth(nbirths,xstart,1,K+1,K);
 
 T = 1;
-sigma_q = 0.1;
+sigma_q = 0.01;
 motion_model = motionmodel.cv2Dmodel(T,sigma_q);
-sigma_r = 0.1;
+sigma_r = 0.01;
 meas_model = measmodel.cv2Dmeasmodel(sigma_r);
 
 targetdata = targetdatagen(ground_truth,motion_model);
@@ -62,6 +62,17 @@ for k = 1:K
 end
 multiHypothesesRMSE = RMSE(cell2mat(multiHypothesesEstimates'),cell2mat(targetdata.X'));
 
+figure
+hold on
+true_state = cell2mat(targetdata.X');
+NN_estimated_state = cell2mat(nearestNeighborEstimates');
+PDA_estimated_state = cell2mat(probDataAssocEstimates');
+MH_estimated_state = cell2mat(multiHypothesesEstimates');
+plot(true_state(1,:), true_state(3,:), '-o','Linewidth', 2)
+plot(NN_estimated_state(1,:), NN_estimated_state(3,:), 'Linewidth', 2)
+plot(PDA_estimated_state(1,:), PDA_estimated_state(3,:), 'Linewidth', 2)
+plot(MH_estimated_state(1,:), MH_estimated_state(3,:), 'Linewidth', 2)
+legend('Ground Truth','Nearest Neighbor', 'Probalistic Data Association', 'Multi-hypotheses Data Association', 'Location', 'best')
 %% True target data generation
 % In this part, you are going to create the groundtruth data. For this
 % purpose consider a 2D (nearly) constant velocity model, (some mathematical
