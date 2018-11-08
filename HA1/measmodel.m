@@ -8,7 +8,7 @@ classdef measmodel
             %INPUT:     sigma: standard deviation of measurement noise ---
             %scalar
             %OUTPUT:    obj.d: measurement dimension --- scalar
-            %           obj.H: measurement transition matrix --- 2 x 4
+            %           obj.H: observation matrix --- 2 x 4
             %           matrix
             %           obj.R: measurement noise covariance --- 2 x 2
             %           matrix

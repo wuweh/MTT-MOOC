@@ -3,6 +3,24 @@ classdef singletargetracker
     %target in clutter and missed detection. NO track initiation&deletion
     %logic
     
+%       sensormodel: a structure specifies the sensor parameters
+%           P_D: target detection probability --- scalar
+%           lambda_c: average number of clutter measurements
+%                   per time scan, Poisson distributed --- scalar
+%           pdf_c: clutter (Poisson) intensity --- scalar
+%       motionmodel: a structure specifies the motion model parameters
+%           d: target state dimension --- scalar
+%           A: motion transition matrix --- (target state dimension) x
+%               (target state dimension) matrix
+%           Q: motion noise covariance --- (target state dimension) x
+%               (target state dimension) matrix
+%       measmodel: a structure specifies the measurement model parameters
+%           d: measurement dimension --- scalar
+%           H: observation matrix --- (measurement dimension) x
+%               (target state dimension) matrix
+%           R: measurement noise covariance --- (measurement dimension) x
+%               (measurement dimension) matrix
+    
     properties
         gating  %specify gating parameter
         x       %target state mean --- (target state dimension) x 1 vector
@@ -47,13 +65,18 @@ classdef singletargetracker
             %                       P: target state covariance
             %       z: measurements --- (measurement dimension) x (number
             %           of measurements) matrix
+            %OUTPUT:hypothesesWeight: the weights of different hypotheses
+            %                       --- (number of updated hypotheses) x 1 vector
+            %       multiHypotheses: (number of updated hypotheses) x 1 structure
+            %                       with two fields: x: target state mean; 
+            %                       P: target state covariance
             
             %Generate multiple new hypotheses
             [hypothesesWeight, multiHypotheses] = ...
                 multiHypothesesPropagation(hypothesesWeight, multiHypotheses, ...
                 z, obj.gating, sensormodel, motionmodel, measmodel);
             
-            %Prune hypotheses with weight smaller than threshold
+            %Prune hypotheses with weight smaller than the specified threshold
             indices_keeped = hypothesesWeight > obj.hypothesis_reduction.wmin;
             hypothesesWeight = hypothesesWeight(indices_keeped);
             multiHypotheses = multiHypotheses(indices_keeped);
@@ -81,33 +104,13 @@ classdef singletargetracker
             %INPUT: z: measurements --- (measurement dimension) x (number
             %           of measurements) matrix
             [obj.x, obj.P] = linearKalmanPredict(obj.x, obj.P, motionmodel);
+            %Perform gating
             z_ingate = Gating(obj.x, obj.P, z, measmodel, obj.gating.size);
             if ~isempty(z_ingate)
                 meas_likelihood = measLikelihood(obj.x, obj.P, z_ingate, measmodel);
+                %Find the nearest neighbor in the gate
                 nearest_neighbor_meas = nearestNeighbor(z_ingate, meas_likelihood);
                 [obj.x, obj.P] = linearKalmanUpdate(obj.x, obj.P, nearest_neighbor_meas, measmodel);
-            end
-        end
-        
-        function obj = nearestNeighborAssocLinearKalmanUpdate(obj, z, measmodel)
-            %NEARESTNEIGHBORASSOCLINEARKALMANUPDATE performs nearest neighbor
-            %data association and linear Kalman filter update
-            %INPUT: z: measurements --- (measurement dimension) x (number
-            %       of measurements) matrix
-            S = measmodel.H*obj.P*measmodel.H' + measmodel.R;
-            nu = z - measmodel.H*repmat(obj.x,[1 size(z,2)]);
-            
-            %Perform ellipsoidal gating
-            dist= sum((inv(chol(S))'*nu).^2);
-            
-            %Choose the closest measurement to the measurement prediction
-            %in the gate. No measurement in the gate means missed detection
-            %happens
-            if min(dist) < obj.gating.size
-                K = obj.P*measmodel.H'/S;
-                obj.P = (eye(size(obj.x,1))-K*measmodel.H)*obj.P;
-                [~,nn_idx] = min(dist);
-                obj.x = obj.x + K*nu(:,nn_idx);
             end
         end
         
@@ -144,6 +147,28 @@ classdef singletargetracker
                 
                 %Merging
                 [obj.x,obj.P] = GaussianMixtureReduction(mu,x_temp,P_temp);
+            end
+        end
+        
+        function obj = nearestNeighborAssocLinearKalmanUpdate(obj, z, measmodel)
+            %NEARESTNEIGHBORASSOCLINEARKALMANUPDATE performs nearest neighbor
+            %data association and linear Kalman filter update
+            %INPUT: z: measurements --- (measurement dimension) x (number
+            %       of measurements) matrix
+            S = measmodel.H*obj.P*measmodel.H' + measmodel.R;
+            nu = z - measmodel.H*repmat(obj.x,[1 size(z,2)]);
+            
+            %Perform ellipsoidal gating
+            dist= sum((inv(chol(S))'*nu).^2);
+            
+            %Choose the closest measurement to the measurement prediction
+            %in the gate. No measurement in the gate means missed detection
+            %happens
+            if min(dist) < obj.gating.size
+                K = obj.P*measmodel.H'/S;
+                obj.P = (eye(size(obj.x,1))-K*measmodel.H)*obj.P;
+                [~,nn_idx] = min(dist);
+                obj.x = obj.x + K*nu(:,nn_idx);
             end
         end
         

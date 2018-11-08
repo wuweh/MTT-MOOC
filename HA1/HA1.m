@@ -24,7 +24,8 @@ motion_model = motionmodel.cv2Dmodel(T,sigma_q);
 sigma_r = 0.01;
 meas_model = measmodel.cv2Dmeasmodel(sigma_r);
 
-targetdata = targetdatagen(ground_truth,motion_model);
+ifnoisy = 0;
+targetdata = targetdatagen(ground_truth,motion_model,ifnoisy);
 measdata = measdatagen(targetdata,sensor_model,meas_model);
 
 %Initiate class
@@ -34,7 +35,7 @@ tracker = singletargetracker();
 tracker = tracker.initiator(P_G,meas_model.d,xstart,Pstart);
 nearestNeighborEstimates = cell(K,1);
 for k = 1:K
-    tracker = nearestNeighborAssocTracker(tracker, measdata.Z{k}, motion_model, meas_model);
+    tracker = nearestNeighborAssocTracker(tracker, measdata{k}, motion_model, meas_model);
     nearestNeighborEstimates{k} = tracker.x;
 end
 nearestNeighborRMSE = RMSE(cell2mat(nearestNeighborEstimates'),cell2mat(targetdata.X'));
@@ -43,7 +44,7 @@ nearestNeighborRMSE = RMSE(cell2mat(nearestNeighborEstimates'),cell2mat(targetda
 tracker = tracker.initiator(P_G,meas_model.d,xstart,Pstart);
 probDataAssocEstimates = cell(K,1);
 for k = 1:K
-    tracker = probDataAssocTracker(tracker, measdata.Z{k}, sensor_model, motion_model, meas_model);
+    tracker = probDataAssocTracker(tracker, measdata{k}, sensor_model, motion_model, meas_model);
     probDataAssocEstimates{k} = tracker.x;
 end
 probalisticDataAssocRMSE = RMSE(cell2mat(probDataAssocEstimates'),cell2mat(targetdata.X'));
@@ -57,7 +58,7 @@ multiHypotheses = struct('x',tracker.x,'P',tracker.P);
 for k = 1:K
     [tracker, hypothesesWeight, multiHypotheses] = ...
         multiHypothesesTracker(tracker, hypothesesWeight, multiHypotheses, ...
-        measdata.Z{k}, sensor_model, motion_model, meas_model);
+        measdata{k}, sensor_model, motion_model, meas_model);
     multiHypothesesEstimates{k} = tracker.x;
 end
 multiHypothesesRMSE = RMSE(cell2mat(multiHypothesesEstimates'),cell2mat(targetdata.X'));

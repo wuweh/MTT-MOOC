@@ -12,6 +12,7 @@ function [hypothesesWeightMerged,multiHypothesesMerged]= hypothesesMerging(hypot
 %       multiHypothesesMerged: (number of hypotheses after merging) x 1 structure
 
 s_d = size(multiHypotheses(1).x,1);
+%Index set of hypotheses
 I = 1:length(multiHypotheses);
 el = 1;
 
@@ -19,22 +20,26 @@ multiHypothesesMerged = struct('x',0,'P',0);
 
 while ~isempty(I)
     Ij = [];
+    %Find the hypothesis with the highest weight
     [~,j] = max(hypothesesWeight);
     iPt = inv(multiHypotheses(j).P);
     for i = I
         temp = multiHypotheses(i).x-multiHypotheses(j).x;
         val = temp'*iPt*temp;
+        %Find other similar hypotheses in the sense of small Mahalanobis distance
         if val <= threshold
             Ij= [ Ij i ];
         end
     end
     
-    %Merge hypotheses within small Mahalanobis distance
+    %Merge hypotheses (weighted average) within small Mahalanobis distance
     hypothesesWeightMerged(el,1) = sum(hypothesesWeight(Ij));
     multiHypothesesMerged(el).x = wsumvec(hypothesesWeight(Ij),[multiHypotheses(Ij).x],s_d)/hypothesesWeightMerged(el,1);
     multiHypothesesMerged(el).P = wsummat(hypothesesWeight(Ij),reshape([multiHypotheses(Ij).P],[s_d,s_d,length(Ij)]),s_d)/hypothesesWeightMerged(el,1);
     
+    %Remove indices of merged hypotheses from hypotheses index set
     I = setdiff(I,Ij);
+    %Set a negative to make sure this hypothesis won't be selected again
     hypothesesWeight(Ij,1) = -1;
     el = el+1;
 end
