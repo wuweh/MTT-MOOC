@@ -1,6 +1,7 @@
-% This home assignment is about tracking a single target in missed
-% detection and clutter. We consider a simple scenario where a single target
-% moves in a 2D region with nearly constant velocity.
+% This home assignment is about tracking a single target in clutter and missed
+% detections. For simplicity, track initiation and deletion are not covered here. 
+% We consider a simple scenario where a single target moves in a 2D region 
+% [-100 100;-100 100] with nearly constant velocity.
 clear; close all; clc
 
 dbstop if error
@@ -78,22 +79,65 @@ legend('Ground Truth','Nearest Neighbor', 'Probalistic Data Association', 'Multi
 % In this part, you are going to create the groundtruth data. For this
 % purpose consider a 2D (nearly) constant velocity model, (some mathematical
 % expressions). The sampling time is $T=1s$, and the acceleration noise is
-% $\sigma_a = 0.1$. The target is guaranteed to be born and has expected initial
-% state (mean) (0, 0, 0, 0) and uncertainty (covariance) eye(4). Generate 
+% $\sigma_a = 0.1$. At time step t_birth, the target is born with initial
+% state (mean) (0, 0, 0, 0). Generate 
 % (t_death - t_birth + 1) seconds of the state trajectory for this target.
+% Generate 100 seconds of the state trajectory for this target and observe
+% the position and velocity components.
 
 %% Target-generated measurement generation
 % In this part, you are going to create the target-generated measurement.
-% For this purpose consider a linear measurement model with measurement noise
-% $\sigma_r = 0.5$. The target detection probability is assumed to be constant 
-% $P_D = 0.9$. Generate the target-generated measurements for each target state.
+% Assume that the observations of the target location are collected using an
+% imperfect sensor. For this purpose consider a linear measurement model with 
+% measurement noise $\sigma_r = 0.5$. The target detection probability is assumed 
+% to be a constant $P_D = 0.9$. Generate the target-generated measurements 
+% for each target state.
+
+% Hint:Note that the detection process can be simulated by generating a 
+% uniform random number u ~ U(0,1) for each measurement time and then by 
+% checking whether u ≶ PD. If u ≤ PD, this means that the target is detected 
+% and if not, the target is not detected.
 
 %% Clutter measurement generation
 % In this part, you are going to generate the clutter measurements. We
 % assume that the number of clutter measurements per time step is Poisson
 % distributed with rate $\lambda_F = 10$, and that the spatial distribution
-% of clutter is uniform in the square region -200 <= x,y <= 200. Generate 
-% 100 sets of such clutter representing the clutter sets we are going to 
-% receive at integer time instants in [0, 99s]. Now add the target-generated
-% measurements to the 100 sets of clutter by selecting t_birth as the
-% starting time
+% of clutter is uniform in the square region -100 <= x,y <= 100. Generate 
+% a sets of such clutter for each measurement time. Now, for each time step,
+% add the target-generated measurements to the set of clutter.
+
+%% Single target tracker
+% Implement single target trackers that use 1) nearest neighbor; 2)
+% probabilistic data association; 3)multi-hypotheses solutions
+% Perform MC runs and try to measure average RMS position and velocity estimation errors of different trackers.
+% Plot the position and velocity estimates of different trackers together
+% with the groundtruth data. Compare the results. Try different detection
+% probability and clutter rate. Can you observe any difference in the
+% performance of different trackers? 
+
+% 1. Implement ellipsoidal gating given a single target state and
+% measurements. Only keep measurements inside the gate. We choose the
+% gating size in percentage $P_G = 0.999$. Actual gating size can be
+% calculated as chi2inv(P_G,measurement dimension). Then, calculate the
+% effective detection probability and missed detection probablity.
+
+% 2. Nearest neighbor: 1. Choose the closest measurement to the measurement 
+% prediction in the gate in the sense that, $mathematical expression$ 2.
+% Update the target using the chosen measurement
+
+% 3. NN is a hard decision mechanism. Soft version of it is to not make a 
+% hard decision but use all of the measurements in the gate to the extent 
+% that they suit the prediction. 1. Calculate the missed detection
+% hypothesis. 2. For each measurement inside the gate, calculate the
+% measurement update likelihood. 3. Normalise the likelihoods. 4. Gaussian
+% mixture reduction. 
+
+% 4. Instead of merging of the possible hypotheses into one. We can
+% propagate and maintain multiple hypotheses over time. Gating is performed
+% for each hypothesis. This results in the multi-hypotheses solution. 
+% Hypothesis weight can be calculate as w_{k+1} = w_k*l_k.
+% However, number of hypotheses will grow exponentially over time. 
+% In order to reduce computational complexity, we can 1. prune hypotheses
+% with very small weights. 2. Only keep M hypotheses with the highest
+% weights. 3. Merge similar hypotheses in the sense of small Mahalanobis
+% distance
