@@ -1,25 +1,25 @@
 classdef singletargetracker
     %SINGLETARGETTRACKER is a class containing functions to track a single
     %target in clutter and missed detection. NO track initiation&deletion
-    %logic
-    
-%       sensormodel: a structure specifies the sensor parameters
-%           P_D: target detection probability --- scalar
-%           lambda_c: average number of clutter measurements
-%                   per time scan, Poisson distributed --- scalar
-%           pdf_c: clutter (Poisson) intensity --- scalar
-%       motionmodel: a structure specifies the motion model parameters
-%           d: target state dimension --- scalar
-%           A: motion transition matrix --- (target state dimension) x
-%               (target state dimension) matrix
-%           Q: motion noise covariance --- (target state dimension) x
-%               (target state dimension) matrix
-%       measmodel: a structure specifies the measurement model parameters
-%           d: measurement dimension --- scalar
-%           H: observation matrix --- (measurement dimension) x
-%               (target state dimension) matrix
-%           R: measurement noise covariance --- (measurement dimension) x
-%               (measurement dimension) matrix
+    %logic.
+    %Model structures need to be called:
+    %sensormodel: a structure specifies the sensor parameters
+    %           P_D: target detection probability --- scalar
+    %           lambda_c: average number of clutter measurements
+    %                   per time scan, Poisson distributed --- scalar
+    %           pdf_c: clutter (Poisson) intensity --- scalar
+    %motionmodel: a structure specifies the motion model parameters
+    %           d: target state dimension --- scalar
+    %           A: motion transition matrix --- (target state dimension) x
+    %               (target state dimension) matrix
+    %           Q: motion noise covariance --- (target state dimension) x
+    %               (target state dimension) matrix
+    %measmodel: a structure specifies the measurement model parameters
+    %           d: measurement dimension --- scalar
+    %           H: observation matrix --- (measurement dimension) x
+    %               (target state dimension) matrix
+    %           R: measurement noise covariance --- (measurement dimension) x
+    %               (measurement dimension) matrix
     
     properties
         gating  %specify gating parameter
@@ -47,9 +47,9 @@ classdef singletargetracker
             %                                       hypotheses --- scalar
             obj.gating.P_G = P_G;
             obj.gating.size = chi2inv(P_G,m_d);
-            obj.hypothesis_reduction.wmin = 1e-4;
-            obj.hypothesis_reduction.merging_threshold = 0.5;
-            obj.hypothesis_reduction.M = 10;
+            obj.hypothesis_reduction.wmin = 1e-5;
+            obj.hypothesis_reduction.merging_threshold = 4;
+            obj.hypothesis_reduction.M = 100;
             obj.x = x_0;
             obj.P = P_0;
         end
@@ -77,20 +77,16 @@ classdef singletargetracker
                 z, obj.gating, sensormodel, motionmodel, measmodel);
             
             %Prune hypotheses with weight smaller than the specified threshold
-            indices_keeped = hypothesesWeight > obj.hypothesis_reduction.wmin;
-            hypothesesWeight = hypothesesWeight(indices_keeped);
-            multiHypotheses = multiHypotheses(indices_keeped);
+            [hypothesesWeight, multiHypotheses] = hypothesisreduction.prune(hypothesesWeight,...
+                multiHypotheses, obj.hypothesis_reduction.wmin);
             
             %Keep at most M hypotheses with the highest weights
-            if length(hypothesesWeight) > obj.hypothesis_reduction.M
-                [hypothesesWeight, sorted_idx] = sort(hypothesesWeight,'descend');
-                hypothesesWeight = hypothesesWeight(1:obj.hypothesis_reduction.M);
-                multiHypotheses = multiHypotheses(sorted_idx(1:obj.hypothesis_reduction.M));
-            end
+            [hypothesesWeight, multiHypotheses] = hypothesisreduction.cap(hypothesesWeight, ...
+                multiHypotheses, obj.hypothesis_reduction.M);
             
             %Merge hypotheses within small enough Mahalanobis distance 
-            [hypothesesWeight,multiHypotheses] = ...
-                hypothesesMerging(hypothesesWeight,multiHypotheses,obj.hypothesis_reduction.merging_threshold);
+            [hypothesesWeight,multiHypotheses] = hypothesisreduction.merge...
+                (hypothesesWeight,multiHypotheses,obj.hypothesis_reduction.merging_threshold);
             
             %Extract target state from the hypothesis with the highest weight
             [~,idx] = max(hypothesesWeight);

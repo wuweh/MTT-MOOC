@@ -47,7 +47,7 @@ multiHypothesesUpdate = struct('x',0,'P',0);
 for i = 1:num_hypotheses
     [hypothesesWeightUpdate(i,1), multiHypothesesUpdate(i).x, multiHypothesesUpdate(i).P] = ...
         missDetectHypothesis(multiHypotheses(i).x, multiHypotheses(i).P, sensormodel.P_D, gating.P_G);
-    hypothesesWeightUpdate(i,1) = hypothesesWeightUpdate(i,1)*(sensormodel.lambda_c)*(sensormodel.pdf_c);
+    hypothesesWeightUpdate(i,1) = hypothesesWeight(i)*hypothesesWeightUpdate(i,1)*(sensormodel.lambda_c)*(sensormodel.pdf_c);
 end
 
 %For each hypothesis, generate measurement update hypotheses
