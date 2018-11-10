@@ -9,11 +9,13 @@ classdef motionmodel
             %OUTPUT:    obj.d: target state dimension --- scalar
             %           obj.A: motion transition matrix --- 2 x 2 matrix
             %           obj.Q: motion noise covariance --- 4 x 4 matrix
+            %           obj.B: noise transition matrix --- 4 x 2 matrix
             obj.d = 4;
-            A1dim = [1 T; 0 1];
-            Q1dim = sigma^2*[T^4/4 T^3/2; T^3/2 T^2];
-            obj.A = blkdiag(A1dim,A1dim);
-            obj.Q = blkdiag(Q1dim,Q1dim);
+            A0 = [1 T; 0 1];                   
+            obj.A = blkdiag(A0,A0);
+            B0 = [(T^2)/2; T];
+            obj.B = sigma*blkdiag(B0,B0);
+            obj.Q= obj.B*obj.B';
         end
 
     end

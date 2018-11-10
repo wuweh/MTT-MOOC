@@ -33,7 +33,7 @@ for i = 1:groundtruth.nbirths
     for k = groundtruth.tbirth(i):min(groundtruth.tdeath(i),K)
         if ifnoisy
             targetstate = motionmodel.A*targetstate + ...
-                mvnrnd(zeros(1,motionmodel.d), motionmodel.Q)';
+                motionmodel.B*randn(size(motionmodel.B,2),1);
         else
             targetstate = motionmodel.A*targetstate;
         end

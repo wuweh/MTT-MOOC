@@ -20,17 +20,18 @@ function measdata = measdatagen(targetdata, sensormodel, measmodel)
 %OUTPUT:measdata: cell array of size (total tracking time, 1), each cell 
 %                   stores measurements of size (measurement dimension) x
 %                   (number of measurements at corresponding time step)
-measdata = cell(length(targetdata.X),1);
+K = length(targetdata.X);
+measdata = cell(K,1);
 
 %Generate measurements
-for k = 1:length(targetdata.X)
+for k = 1:K
     if targetdata.N(k) > 0
         idx = rand(targetdata.N(k),1) <= sensormodel.P_D;
         %Only generate target-generated observations for detected targets
         if isempty(targetdata.X{k}(:,idx))
             measdata{k} = [];
         else
-            measdata{k} = mvnrnd(measmodel.H*targetdata.X{k}(:,idx), measmodel.R)';
+            measdata{k} = measmodel.H*targetdata.X{k}(:,idx) + measmodel.D*randn(measmodel.d,targetdata.N(k));
         end
     end
     %Number of clutter measurements

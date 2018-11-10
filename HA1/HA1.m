@@ -1,31 +1,31 @@
 % This home assignment is about tracking a single target in clutter and missed
 % detections. For simplicity, track initiation and deletion are not covered here. 
 % We consider a simple scenario where a single target moves in a 2D region 
-% [-100 100;-100 100] with nearly constant velocity.
+% [-1000 1000;-1000 1000] with nearly constant velocity.
 clear; close all; clc
 
 dbstop if error
 
 P_D = 0.7;
 lambda_c = 30;
-range_c = [-100 100;-100 100];
+range_c = [-1000 1000;-1000 1000];
 sensor_model = modelgen.sensormodel(P_D,lambda_c,range_c);
 P_G = 0.999;
 
 nbirths = 1;
 K = 100;
-xstart = [0;1;0;1];
+xstart = [0; 0; 0; 0];
 Pstart = eye(4);
 
 ground_truth = modelgen.groundtruth(nbirths,xstart,1,K+1,K);
 
 T = 1;
-sigma_q = 0.01;
+sigma_q = 5;
 motion_model = motionmodel.cv2Dmodel(T,sigma_q);
-sigma_r = 0.01;
+sigma_r = 10;
 meas_model = measmodel.cv2Dmeasmodel(sigma_r);
 
-ifnoisy = 0;
+ifnoisy = 1;
 targetdata = targetdatagen(ground_truth,motion_model,ifnoisy);
 measdata = measdatagen(targetdata,sensor_model,meas_model);
 
@@ -79,7 +79,7 @@ legend('Ground Truth','Nearest Neighbor', 'Probalistic Data Association', 'Multi
 % In this part, you are going to create the groundtruth data. For this
 % purpose consider a 2D (nearly) constant velocity model, (some mathematical
 % expressions). The sampling time is $T=1s$, and the acceleration noise is
-% $\sigma_a = 0.1$. At time step t_birth, the target is born with initial
+% $\sigma_a = 5$. At time step t_birth, the target is born with initial
 % state (mean) (0, 0, 0, 0). Generate 
 % (t_death - t_birth + 1) seconds of the state trajectory for this target.
 % Generate 100 seconds of the state trajectory for this target and observe
@@ -89,7 +89,7 @@ legend('Ground Truth','Nearest Neighbor', 'Probalistic Data Association', 'Multi
 % In this part, you are going to create the target-generated measurement.
 % Assume that the observations of the target location are collected using an
 % imperfect sensor. For this purpose consider a linear measurement model with 
-% measurement noise $\sigma_r = 0.5$. The target detection probability is assumed 
+% measurement noise $\sigma_r = 10$. The target detection probability is assumed 
 % to be a constant $P_D = 0.9$. Generate the target-generated measurements 
 % for each target state.
 
@@ -102,7 +102,7 @@ legend('Ground Truth','Nearest Neighbor', 'Probalistic Data Association', 'Multi
 % In this part, you are going to generate the clutter measurements. We
 % assume that the number of clutter measurements per time step is Poisson
 % distributed with rate $\lambda_F = 10$, and that the spatial distribution
-% of clutter is uniform in the square region -100 <= x,y <= 100. Generate 
+% of clutter is uniform in the square region -1000 <= x,y <= 1000. Generate 
 % a sets of such clutter for each measurement time. Now, for each time step,
 % add the target-generated measurements to the set of clutter.
 
