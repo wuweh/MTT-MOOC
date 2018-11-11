@@ -6,15 +6,15 @@ clear; close all; clc
 
 dbstop if error
 
-P_D = 0.7;
-lambda_c = 30;
+P_D = 0.9;
+lambda_c = 10;
 range_c = [-1000 1000;-1000 1000];
 sensor_model = modelgen.sensormodel(P_D,lambda_c,range_c);
 P_G = 0.999;
 
 nbirths = 1;
 K = 100;
-xstart = [0; 0; 0; 0];
+xstart = [0; 10; 0; 10];
 Pstart = eye(4);
 
 ground_truth = modelgen.groundtruth(nbirths,xstart,1,K+1,K);
