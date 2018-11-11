@@ -14,16 +14,29 @@ P_G = 0.999;
 
 nbirths = 1;
 K = 100;
-xstart = [0; 10; 0; 10];
-Pstart = eye(4);
+% CV model initialization
+% xstart = [0; 10; 0; 10];
+% Pstart = eye(4);
+
+% CT model initialization
+xstart = [0; 0; 10; 0; pi/180];
+Pstart = diag([1 1 1 1*pi/180 1*pi/180].^2);
 
 ground_truth = modelgen.groundtruth(nbirths,xstart,1,K+1,K);
 
 T = 1;
-sigma_q = 5;
-motion_model = motionmodel.cv2Dmodel(T,sigma_q);
+% CV model parameter
+% sigma_q = 5;
+% motion_model = motionmodel.cv2Dmodel(T,sigma_q);
+% sigma_r = 10;
+% meas_model = measmodel.cv2Dmeasmodel(sigma_r);
+
+% CT model parameter
+sigmaV = 5;
+sigmaOmega = pi/360;
+motion_model = motionmodel.ct2Dmodel(T,sigmaV,sigmaOmega);
 sigma_r = 10;
-meas_model = measmodel.cv2Dmeasmodel(sigma_r);
+meas_model = measmodel.ct2Dmeasmodel(sigma_r);
 
 ifnoisy = 1;
 targetdata = targetdatagen(ground_truth,motion_model,ifnoisy);
@@ -64,17 +77,19 @@ for k = 1:K
 end
 multiHypothesesRMSE = RMSE(cell2mat(multiHypothesesEstimates'),cell2mat(targetdata.X'));
 
+%% Ploting
 figure
 hold on
 true_state = cell2mat(targetdata.X');
 NN_estimated_state = cell2mat(nearestNeighborEstimates');
 PDA_estimated_state = cell2mat(probDataAssocEstimates');
 MH_estimated_state = cell2mat(multiHypothesesEstimates');
-plot(true_state(1,:), true_state(3,:), '-o','Linewidth', 2)
-plot(NN_estimated_state(1,:), NN_estimated_state(3,:), 'Linewidth', 2)
-plot(PDA_estimated_state(1,:), PDA_estimated_state(3,:), 'Linewidth', 2)
-plot(MH_estimated_state(1,:), MH_estimated_state(3,:), 'Linewidth', 2)
+plot(true_state(1,:), true_state(2,:), '-o','Linewidth', 2)
+plot(NN_estimated_state(1,:), NN_estimated_state(2,:), 'Linewidth', 2)
+plot(PDA_estimated_state(1,:), PDA_estimated_state(2,:), 'Linewidth', 2)
+plot(MH_estimated_state(1,:), MH_estimated_state(2,:), 'Linewidth', 2)
 legend('Ground Truth','Nearest Neighbor', 'Probalistic Data Association', 'Multi-hypotheses Data Association', 'Location', 'best')
+
 %% True target data generation
 % In this part, you are going to create the groundtruth data. For this
 % purpose consider a 2D (nearly) constant velocity model, (some mathematical

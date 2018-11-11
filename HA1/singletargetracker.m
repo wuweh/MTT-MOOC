@@ -99,7 +99,7 @@ classdef singletargetracker
             %using nearest neighbor association and linear kalman filter
             %INPUT: z: measurements --- (measurement dimension) x (number
             %           of measurements) matrix
-            [obj.x, obj.P] = linearKalmanPredict(obj.x, obj.P, motionmodel);
+            [obj.x, obj.P] = KalmanPredict(obj.x, obj.P, motionmodel);
             %Perform gating
             z_ingate = Gating(obj.x, obj.P, z, measmodel, obj.gating.size);
             if ~isempty(z_ingate)
@@ -117,7 +117,7 @@ classdef singletargetracker
             %       of measurements) matrix
             
             %Prediction
-            [obj.x, obj.P] = linearKalmanPredict(obj.x, obj.P, motionmodel);
+            [obj.x, obj.P] = KalmanPredict(obj.x, obj.P, motionmodel);
             
             %Gating
             z_ingate = Gating(obj.x, obj.P, z, measmodel, obj.gating.size);
@@ -155,7 +155,7 @@ classdef singletargetracker
             nu = z - measmodel.H*repmat(obj.x,[1 size(z,2)]);
             
             %Perform ellipsoidal gating
-            dist= sum((inv(chol(S))'*nu).^2);
+            dist = sum((inv(chol(S))'*nu).^2);
             
             %Choose the closest measurement to the measurement prediction
             %in the gate. No measurement in the gate means missed detection
@@ -177,7 +177,7 @@ classdef singletargetracker
             nu = z - measmodel.H*repmat(obj.x,[1 size(z,2)]);
             
             %Perform ellipsoidal gating
-            dist= sum((inv(chol(S))'*nu).^2);
+            dist = sum((inv(chol(S))'*nu).^2);
             
             %No measurement in the gate means missed detection happens
             if min(dist) < obj.gating.size

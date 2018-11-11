@@ -32,9 +32,9 @@ for i = 1:groundtruth.nbirths
     targetstate = groundtruth.xstart(:,i);
     for k = groundtruth.tbirth(i):min(groundtruth.tdeath(i),K)
         if ifnoisy
-            targetstate = mvnrnd(motionmodel.A*targetstate, motionmodel.Q)';
+            targetstate = mvnrnd(motionmodel.f(targetstate), motionmodel.Q)';
         else
-            targetstate = motionmodel.A*targetstate;
+            targetstate = motionmodel.f(targetstate);
         end
         targetdata.X{k} = [targetdata.X{k} targetstate];
         targetdata.N(k) = targetdata.N(k) + 1;

@@ -37,7 +37,7 @@ num_hypotheses = length(multiHypotheses);
 %Prediction
 for i = 1:num_hypotheses
     [multiHypotheses(i).x, multiHypotheses(i).P] = ...
-        linearKalmanPredict(multiHypotheses(i).x, multiHypotheses(i).P, motionmodel);
+        KalmanPredict(multiHypotheses(i).x, multiHypotheses(i).P, motionmodel);
 end
 
 hypothesesWeightUpdate = zeros(num_hypotheses,1);
