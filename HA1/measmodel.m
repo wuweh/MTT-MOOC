@@ -8,10 +8,12 @@ classdef measmodel
             %INPUT:     sigma: standard deviation of measurement noise ---
             %           scalar
             %OUTPUT:    obj.d: measurement dimension --- scalar
-            %           obj.H: observation matrix --- 2 x 4
-            %           matrix
+            %           obj.H: function handle return an observation matrix
+            %           --- 2 x 4 matrix
             %           obj.R: measurement noise covariance --- 2 x 2
             %           matrix
+            %           obj.h: function handle return a measurement --- 
+            %           2 x 1 matrix
             obj.d = 2;
             obj.H = @(x) [1 0 0 0;0 1 0 0];
             obj.R = sigma^2*eye(2);
@@ -24,10 +26,12 @@ classdef measmodel
             %INPUT:     sigma: standard deviation of measurement noise ---
             %           scalar
             %OUTPUT:    obj.d: measurement dimension --- scalar
-            %           obj.H: observation matrix --- 2 x 5
-            %           matrix
+            %           obj.H: function handle return an observation matrix 
+            %           --- 2 x 5 matrix
             %           obj.R: measurement noise covariance --- 2 x 2
             %           matrix
+            %           obj.h: function handle return a measurement --- 
+            %           2 x 1 matrix
             % NOTE: the first two entries of the state vector represents
             % the X-position and Y-position, respectively.
             obj.d = 2;

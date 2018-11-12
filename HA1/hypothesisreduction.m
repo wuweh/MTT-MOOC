@@ -21,6 +21,7 @@ classdef hypothesisreduction < handle
             %       multiHypotheses_update: (number of hypotheses after pruning) x 1 structure
             indices_keeped = hypothesesWeight > threshold;
             hypothesesWeight_update = hypothesesWeight(indices_keeped);
+            hypothesesWeight_update = hypothesesWeight_update/sum(hypothesesWeight_update);
             multiHypotheses_update = multiHypotheses(indices_keeped);
         end
         
@@ -40,8 +41,7 @@ classdef hypothesisreduction < handle
             if length(hypothesesWeight) > M
                 [hypothesesWeight, sorted_idx] = sort(hypothesesWeight,'descend');
                 hypothesesWeight_update = hypothesesWeight(1:M);
-                hypothesesWeight_update = hypothesesWeight_update*...
-                    sum(hypothesesWeight)/sum(hypothesesWeight_update);
+                hypothesesWeight_update = hypothesesWeight_update/sum(hypothesesWeight_update);
                 multiHypotheses_update = multiHypotheses(sorted_idx(1:M));
             else
                 hypothesesWeight_update = hypothesesWeight;

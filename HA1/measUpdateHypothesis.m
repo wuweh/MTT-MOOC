@@ -7,10 +7,10 @@ function [meas_likelihood, x_upd, P_upd] = measUpdateHypothesis(x, P, z, measmod
 %           measurements) matrix
 %       measmodel: a structure specifies the measurement model parameters
 %           d: measurement dimension --- scalar
-%           H: observation matrix --- (measurement dimension) x
-%               (target state dimension) matrix
-%           R: measurement noise covariance --- (measurement dimension) x
-%               (measurement dimension) matrix
+%           H: function handle return transition/Jacobian matrix
+%           h: function handle return the observation of the target
+%                   state
+%           R: measurement noise covariance matrix
 %OUTPUT: meas_likelihood: likelihood of measurement update --- scalar
 %        x_upd: updated mean --- (target state dimension) x (number of measurements) matrix
 %        P_upd: updated covariance --- (target state dimension) x

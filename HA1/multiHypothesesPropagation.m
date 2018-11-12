@@ -18,16 +18,14 @@ function [hypothesesWeightUpdate, multiHypothesesUpdate] = ...
 %           pdf_c: clutter (Poisson) intensity --- scalar
 %       motionmodel: a structure specifies the motion model parameters
 %           d: target state dimension --- scalar
-%           A: motion transition matrix --- (target state dimension) x
-%               (target state dimension) matrix
-%           Q: motion noise covariance --- (target state dimension) x
-%               (target state dimension) matrix
+%           F: function handle return transition/Jacobian matrix
+%           f: function handle return predicted targe state
+%           Q: motion noise covariance matrix
 %       measmodel: a structure specifies the measurement model parameters
 %           d: measurement dimension --- scalar
-%           H: observation matrix --- (measurement dimension) x
-%               (target state dimension) matrix
-%           R: measurement noise covariance --- (measurement dimension) x
-%               (measurement dimension) matrix
+%           H: function handle return transition/Jacobian matrix
+%           h: function handle return the observation of the target state
+%           R: measurement noise covariance matrix
 %OUTPUT:hypothesesWeightUpdate: updated hypotheses weights --- 
 %                               (number of new hypotheses) x 1 vector
 %       multiHypothesesUpdate: (number of new hypotheses) x 1 structure

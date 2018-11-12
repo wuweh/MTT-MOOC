@@ -13,10 +13,10 @@ function measdata = measdatagen(targetdata, sensormodel, measmodel)
 %                   matrix of the form [xmin xmax;ymin ymax]
 %       measmodel: a structure specifies the measurement model parameters
 %           d: measurement dimension --- scalar
-%           H: observation matrix --- (measurement dimension) x
-%               (target state dimension) matrix
-%           R: measurement noise covariance --- (measurement dimension) x
-%               (measurement dimension) matrix
+%           H: function handle return transition/Jacobian matrix
+%           h: function handle return the observation of the target
+%                   state
+%           R: measurement noise covariance matrix
 %OUTPUT:measdata: cell array of size (total tracking time, 1), each cell 
 %                   stores measurements of size (measurement dimension) x
 %                   (number of measurements at corresponding time step)
