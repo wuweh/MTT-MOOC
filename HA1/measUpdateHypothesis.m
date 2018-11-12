@@ -25,7 +25,7 @@ P_upd = zeros(s_d,s_d,num_meas);
 meas_likelihood = measLikelihood(x, P, z, measmodel);
 %For each measurment in the gate, perform Kalman update
 for i = 1:num_meas
-    [x_upd(:,i), P_upd(:,:,i)] = linearKalmanUpdate(x, P, z(:,i), measmodel);
+    [x_upd(:,i), P_upd(:,:,i)] = KalmanUpdate(x, P, z(:,i), measmodel);
 end
 
 end

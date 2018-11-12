@@ -54,6 +54,58 @@ classdef singletargetracker
             obj.P = P_0;
         end
         
+        function obj = nearestNeighborAssocTracker(obj, z, motionmodel, measmodel)
+            %NEARESTNEIGHBORASSOCTRACKER tracks a single target
+            %using nearest neighbor association and linear kalman filter
+            %INPUT: z: measurements --- (measurement dimension) x (number
+            %           of measurements) matrix
+            [obj.x, obj.P] = KalmanPredict(obj.x, obj.P, motionmodel);
+            %Perform gating
+            z_ingate = Gating(obj.x, obj.P, z, measmodel, obj.gating.size);
+            if ~isempty(z_ingate)
+                meas_likelihood = measLikelihood(obj.x, obj.P, z_ingate, measmodel);
+                %Find the nearest neighbor in the gate
+                nearest_neighbor_meas = nearestNeighbor(z_ingate, meas_likelihood);
+                [obj.x, obj.P] = KalmanUpdate(obj.x, obj.P, nearest_neighbor_meas, measmodel);
+            end
+        end
+        
+        function obj = probDataAssocTracker(obj, z, sensormodel, motionmodel, measmodel)
+            %PROBDATAASSOCTRACKER tracks a single target
+            %using probalistic data association and linear kalman filter
+            %INPUT: z: measurements --- (measurement dimension) x (number
+            %       of measurements) matrix
+            
+            %Prediction
+            [obj.x, obj.P] = KalmanPredict(obj.x, obj.P, motionmodel);
+            
+            %Gating
+            z_ingate = Gating(obj.x, obj.P, z, measmodel, obj.gating.size);
+            
+            if ~isempty(z_ingate)
+                %Allocate memory
+                num_meas_ingate = size(z_ingate,2);
+                mu = zeros(num_meas_ingate+1,1);
+                x_temp = zeros(motionmodel.d,num_meas_ingate+1);
+                P_temp = zeros(motionmodel.d,motionmodel.d,num_meas_ingate+1);
+                
+                %Missed detection hypothesis
+                [miss_detect_likelihood,x_temp(:,1),P_temp(:,:,1)] = ...
+                    missDetectHypothesis(obj.x,obj.P,sensormodel.P_D,obj.gating.P_G);
+                mu(1) = miss_detect_likelihood*(sensormodel.lambda_c)*(sensormodel.pdf_c);
+                
+                %Measurement update hypothesis
+                [mu(2:end),x_temp(:,2:end),P_temp(:,:,2:end)] = ...
+                    measUpdateHypothesis(obj.x,obj.P, z_ingate, measmodel);
+                
+                %Normalise likelihoods
+                mu = mu/sum(mu);
+                
+                %Merging
+                [obj.x,obj.P] = GaussianMixtureReduction(mu,x_temp,P_temp);
+            end
+        end
+        
         function [obj, hypothesesWeight, multiHypotheses] = multiHypothesesTracker(obj, ...
                 hypothesesWeight, multiHypotheses, z, sensormodel, motionmodel, measmodel)
             %MULTIHYPOTHESESTRACKER tracks a single target using multiple
@@ -92,58 +144,6 @@ classdef singletargetracker
             [~,idx] = max(hypothesesWeight);
             obj.x = multiHypotheses(idx).x;
             obj.P = multiHypotheses(idx).P;
-        end
-        
-        function obj = nearestNeighborAssocTracker(obj, z, motionmodel, measmodel)
-            %NEARESTNEIGHBORASSOCTRACKER tracks a single target
-            %using nearest neighbor association and linear kalman filter
-            %INPUT: z: measurements --- (measurement dimension) x (number
-            %           of measurements) matrix
-            [obj.x, obj.P] = KalmanPredict(obj.x, obj.P, motionmodel);
-            %Perform gating
-            z_ingate = Gating(obj.x, obj.P, z, measmodel, obj.gating.size);
-            if ~isempty(z_ingate)
-                meas_likelihood = measLikelihood(obj.x, obj.P, z_ingate, measmodel);
-                %Find the nearest neighbor in the gate
-                nearest_neighbor_meas = nearestNeighbor(z_ingate, meas_likelihood);
-                [obj.x, obj.P] = linearKalmanUpdate(obj.x, obj.P, nearest_neighbor_meas, measmodel);
-            end
-        end
-        
-        function obj = probDataAssocTracker(obj, z, sensormodel, motionmodel, measmodel)
-            %PROBDATAASSOCTRACKER tracks a single target
-            %using probalistic data association and linear kalman filter
-            %INPUT: z: measurements --- (measurement dimension) x (number
-            %       of measurements) matrix
-            
-            %Prediction
-            [obj.x, obj.P] = KalmanPredict(obj.x, obj.P, motionmodel);
-            
-            %Gating
-            z_ingate = Gating(obj.x, obj.P, z, measmodel, obj.gating.size);
-            
-            if ~isempty(z_ingate)
-                %Allocate memory
-                num_meas_ingate = size(z_ingate,2);
-                mu = zeros(num_meas_ingate+1,1);
-                x_temp = zeros(motionmodel.d,num_meas_ingate+1);
-                P_temp = zeros(motionmodel.d,motionmodel.d,num_meas_ingate+1);
-                
-                %Missed detection hypothesis
-                [miss_detect_likelihood,x_temp(:,1),P_temp(:,:,1)] = ...
-                    missDetectHypothesis(obj.x,obj.P,sensormodel.P_D,obj.gating.P_G);
-                mu(1) = miss_detect_likelihood*(sensormodel.lambda_c)*(sensormodel.pdf_c);
-                
-                %Measurement update hypothesis
-                [mu(2:end),x_temp(:,2:end),P_temp(:,:,2:end)] = ...
-                    measUpdateHypothesis(obj.x,obj.P, z_ingate, measmodel);
-                
-                %Normalise likelihoods
-                mu = mu/sum(mu);
-                
-                %Merging
-                [obj.x,obj.P] = GaussianMixtureReduction(mu,x_temp,P_temp);
-            end
         end
         
         function obj = nearestNeighborAssocLinearKalmanUpdate(obj, z, measmodel)

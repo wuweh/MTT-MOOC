@@ -8,17 +8,20 @@ dbstop if error
 
 P_D = 0.9;
 lambda_c = 10;
+%Linear measurement range
 range_c = [-1000 1000;-1000 1000];
+%Bearing measurement range
+% range_c = [-pi pi];
 sensor_model = modelgen.sensormodel(P_D,lambda_c,range_c);
 P_G = 0.999;
 
 nbirths = 1;
 K = 100;
-% CV model initialization
-% xstart = [0; 10; 0; 10];
+%CV model initialization
+% xstart = [0; 0; 10; 10];
 % Pstart = eye(4);
 
-% CT model initialization
+%CT model initialization
 xstart = [0; 0; 10; 0; pi/180];
 Pstart = diag([1 1 1 1*pi/180 1*pi/180].^2);
 
@@ -31,14 +34,19 @@ T = 1;
 % sigma_r = 10;
 % meas_model = measmodel.cv2Dmeasmodel(sigma_r);
 
-% CT model parameter
-sigmaV = 5;
-sigmaOmega = pi/360;
+%CT model parameter
+sigmaV = 1;
+sigmaOmega = pi/180;
 motion_model = motionmodel.ct2Dmodel(T,sigmaV,sigmaOmega);
-sigma_r = 10;
-meas_model = measmodel.ct2Dmeasmodel(sigma_r);
+%Linear measurement model
+% sigma_r = 5;
+% meas_model = measmodel.ct2Dmeasmodel(sigma_r);
+%Bearing measurement model
+s = [100;100];
+sigma_r = pi/90;
+meas_model = measmodel.bearingmeasmodel(sigma_r, s);
 
-ifnoisy = 1;
+ifnoisy = 0;
 targetdata = targetdatagen(ground_truth,motion_model,ifnoisy);
 measdata = measdatagen(targetdata,sensor_model,meas_model);
 

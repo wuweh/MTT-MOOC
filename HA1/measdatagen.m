@@ -30,13 +30,15 @@ for k = 1:length(targetdata.X)
         if isempty(targetdata.X{k}(:,idx))
             measdata{k} = [];
         else
-            measdata{k} = mvnrnd(measmodel.H*targetdata.X{k}(:,idx), measmodel.R)';
+            measdata{k} = mvnrnd(measmodel.h(targetdata.X{k}(:,idx)), measmodel.R)';
         end
     end
     %Number of clutter measurements
     N_c = poissrnd(sensormodel.lambda_c);
     %Generate clutter
-    C = repmat(sensormodel.range_c(:,1),[1 N_c])+ diag(sensormodel.range_c*[-1; 1])*rand(measmodel.d,N_c);
+%     C = repmat(sensormodel.range_c(:,1),[1 N_c])+ diag(sensormodel.range_c*[-1; 1])*rand(measmodel.d,N_c);
+    %Here we assume that if the surveillance area is 2D, it is a square 
+    C = (sensormodel.range_c(1,2)-sensormodel.range_c(1,1))*rand(measmodel.d,N_c)-sensormodel.range_c(1,2);
     %Total measurements are the union of target detections and clutter
     measdata{k}= [measdata{k} C];                                                                  
 end

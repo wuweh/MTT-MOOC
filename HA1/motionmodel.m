@@ -7,17 +7,22 @@ classdef motionmodel
             %INPUT:     T: sampling time --- scalar
             %           sigma: standard deviation of motion noise --- scalar
             %OUTPUT:    obj.d: target state dimension --- scalar
-            %           obj.A: motion transition matrix --- 2 x 2 matrix
+            %           obj.F: motion transition matrix --- 2 x 2 matrix
             %           obj.Q: motion noise covariance --- 4 x 4 matrix
             %           obj.f: state prediction function handle
             obj.d = 4;
-            A1dim = [1 T; 0 1];
-            Q1dim = sigma^2*[T^4/4 T^3/2; T^3/2 T^2];
-            
-            obj.A = blkdiag(A1dim,A1dim);
-            obj.Q = blkdiag(Q1dim,Q1dim);
-            
-            obj.f = @(x) obj.A*x;
+            obj.F = @(x) [
+                1 0 T 0;
+                0 1 0 T;
+                0 0 1 0;
+                0 0 0 1];
+            obj.Q = sigma^2*[
+                T^4/4   0       T^3/2   0;
+                0       T^4/4   0       T^3/2;
+                T^3/2   0       T^2     0;
+                0       T^3/2   0       T^2;
+                ];
+            obj.f = @(x) obj.F(x)*x;
         end
         
         function obj = ct2Dmodel(T,sigmaV,sigmaOmega)
