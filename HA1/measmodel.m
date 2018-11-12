@@ -60,6 +60,36 @@ classdef measmodel
             obj.H = @(x) [-(x(2)-s(2))/(rng(x)^2) (x(1)-s(1))/(rng(x)^2) zeros(1, length(x)-2)];
             %Measurement noise covariance
             obj.R = sigma^2;
+        end
+        
+        function obj = dualbearingmeasmodel(sigma, s1, s2)
+            %DUALBEARINGMEASUREMENT creats the dual bearing measurement model
+            %INPUT: sigma: standard deviation of measurement noise ---
+            %       scalar
+            %       s1: sensor position for sensor 1 --- 2 x 1 vector
+            %       s2: sensor position for sensor 2 --- 2 x 1 vector
+            %OUTPUT:obj.d: measurement dimension --- scalar
+            %       obj.h: function handle to generate measurement ---
+            %       2 x 1 vector
+            %       obj.H: function handle to call measurement model Jacobian
+            %       --- 2 x (state dimension) vector
+            %       obj.R: measurement noise covariance --- 2 x 2 matrix
+            %NOTE: the measurement model assumes that in the state vector
+            %the first two entries are the X-position and Y-position,
+            %respectively.
+            
+            obj.d = 2;
+            %Range
+            rng1 = @(x) norm(x(1:2)-s1);
+            rng2 = @(x) norm(x(1:2)-s2);
+            %Bearing
+            obj.h = @(x) [atan2(x(2)-s1(2),x(1)-s1(1));
+                          atan2(x(2)-s2(2),x(1)-s2(1))];
+            %Measurement model Jacobian
+            obj.H = @(x) [-(x(2)-s1(2))/(rng1(x)^2) (x(1)-s1(1))/(rng1(x)^2) zeros(1, length(x)-2);
+                            -(x(2)-s2(2))/(rng2(x)^2) (x(1)-s2(1))/(rng2(x)^2) zeros(1, length(x)-2)];
+            %Measurement noise covariance
+            obj.R = sigma^2*eye(2);
             
         end
     end
