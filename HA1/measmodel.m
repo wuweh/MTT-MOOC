@@ -54,7 +54,6 @@ classdef measmodel
             %NOTE: the measurement model assumes that in the state vector
             %the first two entries are the X-position and Y-position,
             %respectively.
-            
             obj.d = 1;
             %Range
             rng = @(x) norm(x(1:2)-s);
@@ -81,7 +80,6 @@ classdef measmodel
             %NOTE: the measurement model assumes that in the state vector
             %the first two entries are the X-position and Y-position,
             %respectively.
-            
             obj.d = 2;
             %Range
             rng1 = @(x) norm(x(1:2)-s1);
@@ -94,8 +92,39 @@ classdef measmodel
                             -(x(2)-s2(2))/(rng2(x)^2) (x(1)-s2(1))/(rng2(x)^2) zeros(1, length(x)-2)];
             %Measurement noise covariance
             obj.R = sigma^2*eye(2);
-            
+        end
+        
+        function obj = rangebearingmeasmodel(sigma_r, sigma_b, s)
+            %RANGEBEARINGMEASUREMENT creats the range/bearing measurement model
+            %INPUT: sigma_r: standard deviation of measurement noise added 
+            %           to range --- scalar
+            %       sigma_b: standard deviation of measurement noise added 
+            %           to bearing --- scalar
+            %       s: sensor position --- 2 x 1 vector
+            %OUTPUT:obj.d: measurement dimension --- scalar
+            %       obj.h: function handle to generate measurement ---
+            %       2 x 1 vector
+            %       obj.H: function handle to call measurement model Jacobian
+            %       --- 2 x (state dimension) vector
+            %       obj.R: measurement noise covariance --- 2 x 2 matrix
+            %NOTE: the measurement model assumes that in the state vector
+            %the first two entries are the X-position and Y-position,
+            %respectively.
+            obj.d = 2;
+            %Range
+            rng = @(x) norm(x(1:2)-s);
+            %Bearing
+            ber = @(x) atan2(x(2)-s(2),x(1)-s(1));
+            %Measurement vector
+            obj.h = @(x) [rng(x);ber(x)];
+            %Measurement model Jacobian
+            obj.H = @(x) [
+                          (x(1)-s(1))/rng(x)      (x(2)-s(2))/rng(x)     zeros(1, length(x)-2);
+                          -(x(2)-s(2))/(rng(x)^2) (x(1)-s(1))/(rng(x)^2) zeros(1, length(x)-2)
+                          ];
+            %Measurement noise covariance
+            obj.R = [sigma_r^2 0;
+                     0         sigma_b^2];
         end
     end
 end
-

@@ -11,7 +11,9 @@ lambda_c = 10;
 %Linear measurement range
 % range_c = [-1000 1000;-1000 1000];
 %Bearing measurement range
-range_c = [-pi pi];
+% range_c = [-pi pi];
+%Range/bearing measurement range
+range_c = [-1000 1000;-pi pi];
 sensor_model = modelgen.sensormodel(P_D,lambda_c,range_c);
 P_G = 0.999;
 
@@ -39,15 +41,17 @@ sigmaV = 1;
 sigmaOmega = pi/180;
 motion_model = motionmodel.ct2Dmodel(T,sigmaV,sigmaOmega);
 %Linear measurement model
-% sigma_r = 5;
+sigma_r = 5;
 % meas_model = measmodel.ct2Dmeasmodel(sigma_r);
 %Bearing measurement model
-sigma_r = pi/180;
+sigma_b = pi/180;
 % s = [100;100];
-% meas_model = measmodel.bearingmeasmodel(sigma_r, s);
-s1 = [200;400];
-s2 = [100;200];
-meas_model = measmodel.dualbearingmeasmodel(sigma_r, s1, s2);
+% meas_model = measmodel.bearingmeasmodel(sigma_b, s);
+% s1 = [200;400];
+% s2 = [100;200];
+% meas_model = measmodel.dualbearingmeasmodel(sigma_r, s1, s2);
+s = [100;100];
+meas_model = measmodel.rangebearingmeasmodel(sigma_r, sigma_b, s);
 
 ifnoisy = 0;
 targetdata = targetdatagen(ground_truth,motion_model,ifnoisy);

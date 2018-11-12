@@ -10,7 +10,8 @@ function measdata = measdatagen(targetdata, sensormodel, measmodel)
 %           lambda_c: average number of clutter measurements
 %                   per time scan, Poisson distributed --- scalar
 %           range_c: range of surveillance area --- 2 x 2
-%                   matrix of the form [xmin xmax;ymin ymax]
+%                   matrix of the form [xmin xmax;ymin ymax] or 1 x 2
+%                   vector for bearing only measurement
 %       measmodel: a structure specifies the measurement model parameters
 %           d: measurement dimension --- scalar
 %           H: function handle return transition/Jacobian matrix
@@ -36,9 +37,11 @@ for k = 1:length(targetdata.X)
     %Number of clutter measurements
     N_c = poissrnd(sensormodel.lambda_c);
     %Generate clutter
-%     C = repmat(sensormodel.range_c(:,1),[1 N_c])+ diag(sensormodel.range_c*[-1; 1])*rand(measmodel.d,N_c);
-    %Here we assume that if the surveillance area is 2D, it is a square 
-    C = (sensormodel.range_c(1,2)-sensormodel.range_c(1,1))*rand(measmodel.d,N_c)-sensormodel.range_c(1,2);
+    if measmodel.d == 2
+        C = repmat(sensormodel.range_c(:,1),[1 N_c])+ diag(sensormodel.range_c*[-1; 1])*rand(measmodel.d,N_c);
+    elseif measmodel.d == 1
+        C = (sensormodel.range_c(1,2)-sensormodel.range_c(1,1))*rand(measmodel.d,N_c)-sensormodel.range_c(1,2);
+    end
     %Total measurements are the union of target detections and clutter
     measdata{k}= [measdata{k} C];                                                                  
 end
