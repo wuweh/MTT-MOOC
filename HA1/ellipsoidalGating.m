@@ -1,4 +1,4 @@
-function z_ingate = Gating(x, P, z, measmodel, gating_size)
+function z_ingate = ellipsoidalGating(x, P, z, measmodel, gating_size)
 %GATING performs ellipsoidal gating for a single target
 %INPUT:  z: measurements --- (measurement dimension) x (number
 %           of measurements) matrix

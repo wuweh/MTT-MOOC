@@ -53,7 +53,7 @@ idx = num_hypotheses;
 for i = 1:num_hypotheses
     %Perform gating for each hypothesis, only generate hypotheses for
     %measurements in the gate
-    z_ingate = Gating(multiHypotheses(i).x, multiHypotheses(i).P, z, measmodel, gating.size);
+    z_ingate = ellipsoidalGating(multiHypotheses(i).x, multiHypotheses(i).P, z, measmodel, gating.size);
     if ~isempty(z_ingate)
         [wupd, xupd, Pupd] = measUpdateHypothesis(multiHypotheses(i).x, multiHypotheses(i).P, z_ingate, measmodel);
         for j = 1:length(wupd)

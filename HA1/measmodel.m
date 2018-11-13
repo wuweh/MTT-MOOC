@@ -2,8 +2,8 @@ classdef measmodel
     %MEASMODEL is a class containing different measurement models
     
     methods (Static)
-        function obj = cv2Dmeasmodel(sigma)
-            %CV2DMEASMODEL creates the measurement model for a 2D nearly
+        function obj = cvmeasmodel(sigma)
+            %CVMEASMODEL creates the measurement model for a 2D nearly
             %constant velocity motion model
             %INPUT:     sigma: standard deviation of measurement noise ---
             %           scalar
@@ -20,8 +20,8 @@ classdef measmodel
             obj.h = @(x) obj.H(x)*x;
         end
         
-        function obj = ct2Dmeasmodel(sigma)
-            %CT2DMEASMODEL creates the measurement model for a 2D
+        function obj = ctmeasmodel(sigma)
+            %CTMEASMODEL creates the measurement model for a 2D
             %coordinate turn motion model
             %INPUT:     sigma: standard deviation of measurement noise ---
             %           scalar

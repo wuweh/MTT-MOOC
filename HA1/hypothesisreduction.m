@@ -1,4 +1,4 @@
-classdef hypothesisreduction < handle
+classdef hypothesisReduction < handle
     %HYPOTHESISREDUCTION is class containing different hypotheses reduction
     %method
     %PRUNE: prune hypotheses with small weights.

@@ -2,8 +2,8 @@ classdef motionmodel
     %MOTIONMODEL is a class containing different motion models
     
     methods (Static)
-        function obj = cv2Dmodel(T,sigma)
-            %CV2DMODEL creates a 2D nearly constant velocity model
+        function obj = cvmodel(T,sigma)
+            %CVMODEL creates a 2D nearly constant velocity model
             %INPUT:     T: sampling time --- scalar
             %           sigma: standard deviation of motion noise --- scalar
             %OUTPUT:    obj.d: target state dimension --- scalar
@@ -33,8 +33,8 @@ classdef motionmodel
             obj.f = @(x) obj.F(x)*x;
         end
         
-        function obj = ct2Dmodel(T,sigmaV,sigmaOmega)
-            %CT2DMODEL creates a 2D coordinate turn model with nearly constant
+        function obj = ctmodel(T,sigmaV,sigmaOmega)
+            %CTMODEL creates a 2D coordinate turn model with nearly constant
             %polar velocity and turn rate
             %INPUT:     T: sampling time --- scalar
             %           sigmaV: standard deviation of motion noise added to

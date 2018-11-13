@@ -32,17 +32,17 @@ ground_truth = modelgen.groundtruth(nbirths,xstart,1,K+1,K);
 T = 1;
 % CV model parameter
 % sigma_q = 5;
-% motion_model = motionmodel.cv2Dmodel(T,sigma_q);
+% motion_model = motionmodel.cvmodel(T,sigma_q);
 % sigma_r = 10;
-% meas_model = measmodel.cv2Dmeasmodel(sigma_r);
+% meas_model = measmodel.cvmeasmodel(sigma_r);
 
 %CT model parameter
 sigmaV = 1;
 sigmaOmega = pi/180;
-motion_model = motionmodel.ct2Dmodel(T,sigmaV,sigmaOmega);
+motion_model = motionmodel.ctmodel(T,sigmaV,sigmaOmega);
 %Linear measurement model
 sigma_r = 5;
-% meas_model = measmodel.ct2Dmeasmodel(sigma_r);
+% meas_model = measmodel.ctmeasmodel(sigma_r);
 %Bearing measurement model
 sigma_b = pi/180;
 % s = [100;100];

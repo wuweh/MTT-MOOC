@@ -60,7 +60,7 @@ classdef singletargetracker
             %           of measurements) matrix
             [obj.x, obj.P] = KalmanPredict(obj.x, obj.P, motionmodel);
             %Perform gating
-            z_ingate = Gating(obj.x, obj.P, z, measmodel, obj.gating.size);
+            z_ingate = ellipsoidalGating(obj.x, obj.P, z, measmodel, obj.gating.size);
             if ~isempty(z_ingate)
                 meas_likelihood = measLikelihood(obj.x, obj.P, z_ingate, measmodel);
                 %Find the nearest neighbor in the gate
@@ -79,7 +79,7 @@ classdef singletargetracker
             [obj.x, obj.P] = KalmanPredict(obj.x, obj.P, motionmodel);
             
             %Gating
-            z_ingate = Gating(obj.x, obj.P, z, measmodel, obj.gating.size);
+            z_ingate = ellipsoidalGating(obj.x, obj.P, z, measmodel, obj.gating.size);
             
             if ~isempty(z_ingate)
                 %Allocate memory
@@ -128,15 +128,15 @@ classdef singletargetracker
                 z, obj.gating, sensormodel, motionmodel, measmodel);
             
             %Prune hypotheses with weight smaller than the specified threshold
-            [hypothesesWeight, multiHypotheses] = hypothesisreduction.prune(hypothesesWeight,...
+            [hypothesesWeight, multiHypotheses] = hypothesisReduction.prune(hypothesesWeight,...
                 multiHypotheses, obj.hypothesis_reduction.wmin);
             
             %Keep at most M hypotheses with the highest weights
-            [hypothesesWeight, multiHypotheses] = hypothesisreduction.cap(hypothesesWeight, ...
+            [hypothesesWeight, multiHypotheses] = hypothesisReduction.cap(hypothesesWeight, ...
                 multiHypotheses, obj.hypothesis_reduction.M);
             
             %Merge hypotheses within small enough Mahalanobis distance 
-            [hypothesesWeight,multiHypotheses] = hypothesisreduction.merge...
+            [hypothesesWeight,multiHypotheses] = hypothesisReduction.merge...
                 (hypothesesWeight,multiHypotheses,obj.hypothesis_reduction.merging_threshold);
             
             %Extract target state from the hypothesis with the highest weight
