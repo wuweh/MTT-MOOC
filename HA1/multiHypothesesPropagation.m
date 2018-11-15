@@ -55,7 +55,7 @@ for i = 1:num_hypotheses
     %measurements in the gate
     z_ingate = ellipsoidalGating(multiHypotheses(i).x, multiHypotheses(i).P, z, measmodel, gating.size);
     if ~isempty(z_ingate)
-        [wupd, xupd, Pupd] = measUpdateHypothesis(multiHypotheses(i).x, multiHypotheses(i).P, z_ingate, measmodel);
+        [wupd, xupd, Pupd] = measUpdateHypothesis(multiHypotheses(i).x, multiHypotheses(i).P, z_ingate, measmodel, sensormodel.P_D);
         for j = 1:length(wupd)
             idx = idx + 1;
             hypothesesWeightUpdate(idx,1) = wupd(j)*hypothesesWeight(i);

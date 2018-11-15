@@ -2,6 +2,11 @@ function z_ingate = ellipsoidalGating(x, P, z, measmodel, gating_size)
 %GATING performs ellipsoidal gating for a single target
 %INPUT:  z: measurements --- (measurement dimension) x (number
 %           of measurements) matrix
+%        x: target state --- (state dimension) x 1 vector
+%        P: target state covariance --- (state dimension) x (state
+%           dimension) matrix
+%        measmodel: a structure specifies the measurement model parameters
+%        gating_size: gating size --- scalar
 %OUTPUT: z_ingate: measurements in the gate --- (measurement
 %                   dimension) x (number of measurements in the gate) matrix
 zlength = size(z,2);

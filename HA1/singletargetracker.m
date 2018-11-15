@@ -13,7 +13,7 @@ classdef singletargetracker
     %           F: function handle return transition/Jacobian matrix
     %           f: function handle return predicted targe state
     %           Q: motion noise covariance matrix
-
+    
     %measmodel: a structure specifies the measurement model parameters
     %           d: measurement dimension --- scalar
     %           H: function handle return transition/Jacobian matrix
@@ -29,33 +29,34 @@ classdef singletargetracker
     
     methods
         
-        function obj = initiator(obj,P_G,m_d,x_0,P_0)
+        function obj = initiator(obj,P_G,m_d,wmin,merging_threshold,M,x_0,P_0)
             %INITIATOR initiates singletargetracker class
             %INPUT: P_G: gating size in percentage --- scalar
             %       m_d: measurement dimension --- scalar
+            %       wmin: allowed minimum hypothesis weight --- scalar
+            %       merging_threshold: merging threshold --- scalar
+            %       M: allowed maximum number of hypotheses --- scalar
             %       x_0: mean of target initial state --- (target state
             %           dimension) x 1 vector
             %       P_0: covariance of target initial state (target state
             %           dimension) x (target state dimension) matrix
-            %OUTPUT:  obj.gating.size: gating size --- scalar
-            %         obj.hypothesis_reduction.wmin: allowed minimum hypothesis
-            %                                       weight --- scalar
-            %         obj.hypothesis_reduction.merging_threshold: merging
-            %                                                   threshold --- scalar
-            %         obj.hypothesis_reduction.M: allowed maximum number of
-            %                                       hypotheses --- scalar
+            %OUTPUT:  obj.gating.P_G: gating size in percentage --- scalar
+            %         obj.gating.size: gating size --- scalar
+            %         obj.hypothesis_reduction.wmin: allowed minimum hypothesis weight --- scalar
+            %         obj.hypothesis_reduction.merging_threshold: merging threshold --- scalar
+            %         obj.hypothesis_reduction.M: allowed maximum number of hypotheses --- scalar
             obj.gating.P_G = P_G;
-            obj.gating.size = chi2inv(P_G,m_d);
-            obj.hypothesis_reduction.wmin = 1e-5;
-            obj.hypothesis_reduction.merging_threshold = 4;
-            obj.hypothesis_reduction.M = 100;
+            obj.gating.size = chi2inv(obj.gating.P_G,m_d);
+            obj.hypothesis_reduction.wmin = wmin;
+            obj.hypothesis_reduction.merging_threshold = merging_threshold;
+            obj.hypothesis_reduction.M = M;
             obj.x = x_0;
             obj.P = P_0;
         end
         
-        function obj = nearestNeighborAssocTracker(obj, z, motionmodel, measmodel)
-            %NEARESTNEIGHBORASSOCTRACKER tracks a single target
-            %using nearest neighbor association and linear kalman filter
+        function obj = nearestNeighborTracker(obj, z, motionmodel, measmodel)
+            %NEARESTNEIGHBORTRACKER tracks a single target
+            %using nearest neighbor association and kalman filter
             %INPUT: z: measurements --- (measurement dimension) x (number
             %           of measurements) matrix
             [obj.x, obj.P] = KalmanPredict(obj.x, obj.P, motionmodel);
@@ -71,7 +72,7 @@ classdef singletargetracker
         
         function obj = probDataAssocTracker(obj, z, sensormodel, motionmodel, measmodel)
             %PROBDATAASSOCTRACKER tracks a single target
-            %using probalistic data association and linear kalman filter
+            %using probalistic data association and kalman filter
             %INPUT: z: measurements --- (measurement dimension) x (number
             %       of measurements) matrix
             
@@ -89,13 +90,13 @@ classdef singletargetracker
                 P_temp = zeros(motionmodel.d,motionmodel.d,num_meas_ingate+1);
                 
                 %Missed detection hypothesis
-                [miss_detect_likelihood,x_temp(:,1),P_temp(:,:,1)] = ...
+                [w_miss,x_temp(:,1),P_temp(:,:,1)] = ...
                     missDetectHypothesis(obj.x,obj.P,sensormodel.P_D,obj.gating.P_G);
-                mu(1) = miss_detect_likelihood*(sensormodel.lambda_c)*(sensormodel.pdf_c);
+                mu(1) = w_miss*(sensormodel.lambda_c)*(sensormodel.pdf_c);
                 
                 %Measurement update hypothesis
                 [mu(2:end),x_temp(:,2:end),P_temp(:,:,2:end)] = ...
-                    measUpdateHypothesis(obj.x,obj.P, z_ingate, measmodel);
+                    measUpdateHypothesis(obj.x,obj.P,z_ingate,measmodel,sensormodel.P_D);
                 
                 %Normalise likelihoods
                 mu = mu/sum(mu);
@@ -112,14 +113,14 @@ classdef singletargetracker
             %INPUT: hypothesesWeight: the weights of different hypotheses
             %                       --- (number of hypotheses) x 1 vector
             %       multiHypotheses: (number of hypotheses) x 1 structure
-            %                       with two fields: x: target state mean; 
+            %                       with two fields: x: target state mean;
             %                       P: target state covariance
             %       z: measurements --- (measurement dimension) x (number
             %           of measurements) matrix
             %OUTPUT:hypothesesWeight: the weights of different hypotheses
             %                       --- (number of updated hypotheses) x 1 vector
             %       multiHypotheses: (number of updated hypotheses) x 1 structure
-            %                       with two fields: x: target state mean; 
+            %                       with two fields: x: target state mean;
             %                       P: target state covariance
             
             %Generate multiple new hypotheses
@@ -135,7 +136,7 @@ classdef singletargetracker
             [hypothesesWeight, multiHypotheses] = hypothesisReduction.cap(hypothesesWeight, ...
                 multiHypotheses, obj.hypothesis_reduction.M);
             
-            %Merge hypotheses within small enough Mahalanobis distance 
+            %Merge hypotheses within small enough Mahalanobis distance
             [hypothesesWeight,multiHypotheses] = hypothesisReduction.merge...
                 (hypothesesWeight,multiHypotheses,obj.hypothesis_reduction.merging_threshold);
             
@@ -209,7 +210,7 @@ classdef singletargetracker
 %                 %Calculate the equivalent measurement
 %                 z_eq = mu(1)*measmodel.H*obj.x + z(:,meas_update_idx)*mu(2:end);
 %                 obj.x = obj.x + K*(z_eq-measmodel.H*obj.x);
-
+                
                 %Calculate merged mean
                 obj.x = x_temp*mu;
                 %Calculate merged covariance

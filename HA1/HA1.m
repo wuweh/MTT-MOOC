@@ -6,8 +6,8 @@ clear; close all; clc
 
 dbstop if error
 
-P_D = 0.9;
-lambda_c = 10;
+P_D = 0.7;
+lambda_c = 30;
 %Linear measurement range
 % range_c = [-1000 1000;-1000 1000];
 %Bearing measurement range
@@ -15,7 +15,6 @@ lambda_c = 10;
 %Range/bearing measurement range
 range_c = [-1000 1000;-pi pi];
 sensor_model = modelgen.sensormodel(P_D,lambda_c,range_c);
-P_G = 0.999;
 
 nbirths = 1;
 K = 100;
@@ -53,24 +52,28 @@ sigma_b = pi/180;
 s = [100;100];
 meas_model = measmodel.rangebearingmeasmodel(sigma_r, sigma_b, s);
 
-ifnoisy = 0;
+ifnoisy = 1;
 targetdata = targetdatagen(ground_truth,motion_model,ifnoisy);
 measdata = measdatagen(targetdata,sensor_model,meas_model);
 
-%Initiate class
-tracker = singletargetracker();
+%Parameters
+P_G = 0.999;
+wmin = 1e-4;
+merging_threshold = 4;
+M = 100;
 
-%NN tracker
-tracker = tracker.initiator(P_G,meas_model.d,xstart,Pstart);
+%% NN tracker
+tracker = singletargetracker();
+tracker = tracker.initiator(P_G,meas_model.d,wmin,merging_threshold,M,xstart,Pstart);
 nearestNeighborEstimates = cell(K,1);
 for k = 1:K
-    tracker = nearestNeighborAssocTracker(tracker, measdata{k}, motion_model, meas_model);
+    tracker = nearestNeighborTracker(tracker, measdata{k}, motion_model, meas_model);
     nearestNeighborEstimates{k} = tracker.x;
 end
 nearestNeighborRMSE = RMSE(cell2mat(nearestNeighborEstimates'),cell2mat(targetdata.X'));
 
-%PDA tracker
-tracker = tracker.initiator(P_G,meas_model.d,xstart,Pstart);
+%% PDA tracker
+tracker = tracker.initiator(P_G,meas_model.d,wmin,merging_threshold,M,xstart,Pstart);
 probDataAssocEstimates = cell(K,1);
 for k = 1:K
     tracker = probDataAssocTracker(tracker, measdata{k}, sensor_model, motion_model, meas_model);
@@ -78,8 +81,8 @@ for k = 1:K
 end
 probalisticDataAssocRMSE = RMSE(cell2mat(probDataAssocEstimates'),cell2mat(targetdata.X'));
 
-%Multi-hypothesis tracker
-tracker = tracker.initiator(P_G,meas_model.d,xstart,Pstart);
+%% Multi-hypothesis tracker
+tracker = tracker.initiator(P_G,meas_model.d,wmin,merging_threshold,M,xstart,Pstart);
 multiHypothesesEstimates = cell(K,1);
 %Initialize hypothesesWeight and multiHypotheses struct
 hypothesesWeight = 1;
