@@ -54,96 +54,138 @@ classdef singletargetracker
             obj.P = P_0;
         end
         
-        function obj = nearestNeighborTracker(obj, z, motionmodel, measmodel)
+        function estimates = nearestNeighborTracker(obj, Z, motionmodel, measmodel)
             %NEARESTNEIGHBORTRACKER tracks a single target
             %using nearest neighbor association and kalman filter
-            %INPUT: z: measurements --- (measurement dimension) x (number
-            %           of measurements) matrix
-            [obj.x, obj.P] = KalmanPredict(obj.x, obj.P, motionmodel);
-            %Perform gating
-            z_ingate = ellipsoidalGating(obj.x, obj.P, z, measmodel, obj.gating.size);
-            if ~isempty(z_ingate)
-                meas_likelihood = measLikelihood(obj.x, obj.P, z_ingate, measmodel);
-                %Find the nearest neighbor in the gate
-                nearest_neighbor_meas = nearestNeighbor(z_ingate, meas_likelihood);
-                [obj.x, obj.P] = KalmanUpdate(obj.x, obj.P, nearest_neighbor_meas, measmodel);
+            %INPUT: Z: cell array of size (total tracking time, 1), each cell 
+            %          stores measurements of size (measurement dimension) x
+            %          (number of measurements at corresponding time step)
+            %OUTPUT:estimates: a structure with two fields:
+            %               x: cell array of size (total tracking time, 1), each cell stores estimated target states
+            %                  of size (target state dimension) x (number of targets
+            %                  at corresponding time step)
+            %               P: cell array of size (total tracking time, 1), each cell stores estimated target states
+            %                  uncertainty covariance of size (target state dimension) x 
+            %                  (target state dimension) x (number of targets
+            %                  at corresponding time step)
+            
+            K = length(Z);
+            estimates.x = cell(K,1);
+            estimates.P = cell(K,1);
+            for k = 1:K
+                [obj.x, obj.P] = KalmanPredict(obj.x, obj.P, motionmodel);
+                %Perform gating
+                z_ingate = ellipsoidalGating(obj.x, obj.P, Z{k}, measmodel, obj.gating.size);
+                if ~isempty(z_ingate)
+                    meas_likelihood = measLikelihood(obj.x, obj.P, z_ingate, measmodel);
+                    %Find the nearest neighbor in the gate
+                    nearest_neighbor_meas = nearestNeighbor(z_ingate, meas_likelihood);
+                    [obj.x, obj.P] = KalmanUpdate(obj.x, obj.P, nearest_neighbor_meas, measmodel);
+                end
+                estimates.x{k} = obj.x;
+                estimates.P{k} = obj.P;
             end
         end
         
-        function obj = probDataAssocTracker(obj, z, sensormodel, motionmodel, measmodel)
+        function estimates = probDataAssocTracker(obj, Z, sensormodel, motionmodel, measmodel)
             %PROBDATAASSOCTRACKER tracks a single target
             %using probalistic data association and kalman filter
-            %INPUT: z: measurements --- (measurement dimension) x (number
-            %       of measurements) matrix
-            
-            %Prediction
-            [obj.x, obj.P] = KalmanPredict(obj.x, obj.P, motionmodel);
-            
-            %Gating
-            z_ingate = ellipsoidalGating(obj.x, obj.P, z, measmodel, obj.gating.size);
-            
-            if ~isempty(z_ingate)
-                %Allocate memory
-                num_meas_ingate = size(z_ingate,2);
-                mu = zeros(num_meas_ingate+1,1);
-                x_temp = zeros(motionmodel.d,num_meas_ingate+1);
-                P_temp = zeros(motionmodel.d,motionmodel.d,num_meas_ingate+1);
+            %INPUT: Z: cell array of size (total tracking time, 1), each cell 
+            %          stores measurements of size (measurement dimension) x
+            %          (number of measurements at corresponding time step)
+            %OUTPUT:estimates: a structure with two fields:
+            %               x: cell array of size (total tracking time, 1), each cell stores estimated target states
+            %                  of size (target state dimension) x (number of targets
+            %                  at corresponding time step)
+            %               P: cell array of size (total tracking time, 1), each cell stores estimated target states
+            %                  uncertainty covariance of size (target state dimension) x 
+            %                  (target state dimension) x (number of targets
+            %                  at corresponding time step)
+            K = length(Z);
+            estimates.x = cell(K,1);
+            estimates.P = cell(K,1);
+            for k = 1:K
+                %Prediction
+                [obj.x, obj.P] = KalmanPredict(obj.x, obj.P, motionmodel);
                 
-                %Missed detection hypothesis
-                [w_miss,x_temp(:,1),P_temp(:,:,1)] = ...
-                    missDetectHypothesis(obj.x,obj.P,sensormodel.P_D,obj.gating.P_G);
-                mu(1) = w_miss*(sensormodel.lambda_c)*(sensormodel.pdf_c);
+                %Gating
+                z_ingate = ellipsoidalGating(obj.x, obj.P, Z{k}, measmodel, obj.gating.size);
                 
-                %Measurement update hypothesis
-                [mu(2:end),x_temp(:,2:end),P_temp(:,:,2:end)] = ...
-                    measUpdateHypothesis(obj.x,obj.P,z_ingate,measmodel,sensormodel.P_D);
-                
-                %Normalise likelihoods
-                mu = mu/sum(mu);
-                
-                %Merging
-                [obj.x,obj.P] = GaussianMixtureReduction(mu,x_temp,P_temp);
+                if ~isempty(z_ingate)
+                    %Allocate memory
+                    num_meas_ingate = size(z_ingate,2);
+                    mu = zeros(num_meas_ingate+1,1);
+                    x_temp = zeros(motionmodel.d,num_meas_ingate+1);
+                    P_temp = zeros(motionmodel.d,motionmodel.d,num_meas_ingate+1);
+                    
+                    %Missed detection hypothesis
+                    [w_miss,x_temp(:,1),P_temp(:,:,1)] = ...
+                        missDetectHypothesis(obj.x,obj.P,sensormodel.P_D,obj.gating.P_G);
+                    mu(1) = w_miss*(sensormodel.lambda_c)*(sensormodel.pdf_c);
+                    
+                    %Measurement update hypothesis
+                    [mu(2:end),x_temp(:,2:end),P_temp(:,:,2:end)] = ...
+                        measUpdateHypothesis(obj.x,obj.P,z_ingate,measmodel,sensormodel.P_D);
+                    
+                    %Normalise likelihoods
+                    mu = mu/sum(mu);
+                    
+                    %Merging
+                    [obj.x,obj.P] = GaussianMixtureReduction(mu,x_temp,P_temp);
+                end
+                estimates.x{k} = obj.x;
+                estimates.P{k} = obj.P;
             end
         end
         
-        function [obj, hypothesesWeight, multiHypotheses] = multiHypothesesTracker(obj, ...
-                hypothesesWeight, multiHypotheses, z, sensormodel, motionmodel, measmodel)
+        function estimates = multiHypothesesTracker(obj, Z, sensormodel, motionmodel, measmodel)
             %MULTIHYPOTHESESTRACKER tracks a single target using multiple
             %hypotheses
-            %INPUT: hypothesesWeight: the weights of different hypotheses
-            %                       --- (number of hypotheses) x 1 vector
-            %       multiHypotheses: (number of hypotheses) x 1 structure
-            %                       with two fields: x: target state mean;
-            %                       P: target state covariance
-            %       z: measurements --- (measurement dimension) x (number
-            %           of measurements) matrix
-            %OUTPUT:hypothesesWeight: the weights of different hypotheses
-            %                       --- (number of updated hypotheses) x 1 vector
-            %       multiHypotheses: (number of updated hypotheses) x 1 structure
-            %                       with two fields: x: target state mean;
-            %                       P: target state covariance
+            %INPUT: Z: cell array of size (total tracking time, 1), each cell 
+            %          stores measurements of size (measurement dimension) x
+            %          (number of measurements at corresponding time step)
+            %OUTPUT:estimates: a structure with two fields:
+            %               x: cell array of size (total tracking time, 1), each cell stores estimated target states
+            %                  of size (target state dimension) x (number of targets
+            %                  at corresponding time step)
+            %               P: cell array of size (total tracking time, 1), each cell stores estimated target states
+            %                  uncertainty covariance of size (target state dimension) x 
+            %                  (target state dimension) x (number of targets
+            %                  at corresponding time step)
             
-            %Generate multiple new hypotheses
-            [hypothesesWeight, multiHypotheses] = ...
-                multiHypothesesPropagation(hypothesesWeight, multiHypotheses, ...
-                z, obj.gating, sensormodel, motionmodel, measmodel);
+            %Initialize hypothesesWeight and multiHypotheses struct
+            hypothesesWeight = 1;
+            multiHypotheses = struct('x',obj.x,'P',obj.P);
             
-            %Prune hypotheses with weight smaller than the specified threshold
-            [hypothesesWeight, multiHypotheses] = hypothesisReduction.prune(hypothesesWeight,...
-                multiHypotheses, obj.hypothesis_reduction.wmin);
-            
-            %Keep at most M hypotheses with the highest weights
-            [hypothesesWeight, multiHypotheses] = hypothesisReduction.cap(hypothesesWeight, ...
-                multiHypotheses, obj.hypothesis_reduction.M);
-            
-            %Merge hypotheses within small enough Mahalanobis distance
-            [hypothesesWeight,multiHypotheses] = hypothesisReduction.merge...
-                (hypothesesWeight,multiHypotheses,obj.hypothesis_reduction.merging_threshold);
-            
-            %Extract target state from the hypothesis with the highest weight
-            [~,idx] = max(hypothesesWeight);
-            obj.x = multiHypotheses(idx).x;
-            obj.P = multiHypotheses(idx).P;
+            K = length(Z);
+            estimates.x = cell(K,1);
+            estimates.P = cell(K,1);
+            for k = 1:K
+                %Generate multiple new hypotheses
+                [hypothesesWeight, multiHypotheses] = ...
+                    multiHypothesesPropagation(hypothesesWeight, multiHypotheses, ...
+                    Z{k}, obj.gating, sensormodel, motionmodel, measmodel);
+                
+                %Prune hypotheses with weight smaller than the specified threshold
+                [hypothesesWeight, multiHypotheses] = hypothesisReduction.prune(hypothesesWeight,...
+                    multiHypotheses, obj.hypothesis_reduction.wmin);
+                
+                %Keep at most M hypotheses with the highest weights
+                [hypothesesWeight, multiHypotheses] = hypothesisReduction.cap(hypothesesWeight, ...
+                    multiHypotheses, obj.hypothesis_reduction.M);
+                
+                %Merge hypotheses within small enough Mahalanobis distance
+                [hypothesesWeight,multiHypotheses] = hypothesisReduction.merge...
+                    (hypothesesWeight,multiHypotheses,obj.hypothesis_reduction.merging_threshold);
+                
+                %Extract target state from the hypothesis with the highest weight
+                [~,idx] = max(hypothesesWeight);
+                obj.x = multiHypotheses(idx).x;
+                obj.P = multiHypotheses(idx).P;
+                
+                estimates.x{k} = obj.x;
+                estimates.P{k} = obj.P;
+            end
         end
         
         function obj = nearestNeighborAssocLinearKalmanUpdate(obj, z, measmodel)
@@ -200,16 +242,16 @@ classdef singletargetracker
                 
                 %For each measurment in the gate, perform Kalman update
                 for i = 1:num_meas_ingate
-                    mu(i+1) = mvnpdf(z(:,meas_update_idx(i)),measmodel.H*obj.x,S);
+                    mu(i+1) = mvnpdf(z(:,meas_update_idx(i)),measmodel.H*obj.x,S)*sensormodel.P_D;
                     x_temp(:,i+1) = obj.x + K*nu(:,meas_update_idx(i));
                     P_temp(:,:,i+1) = (eye(size(obj.x,1))-K*measmodel.H)*obj.P;
                 end
                 
                 %Normalise likelihoods
                 mu = mu/sum(mu);
-%                 %Calculate the equivalent measurement
-%                 z_eq = mu(1)*measmodel.H*obj.x + z(:,meas_update_idx)*mu(2:end);
-%                 obj.x = obj.x + K*(z_eq-measmodel.H*obj.x);
+                %                 %Calculate the equivalent measurement
+                %                 z_eq = mu(1)*measmodel.H*obj.x + z(:,meas_update_idx)*mu(2:end);
+                %                 obj.x = obj.x + K*(z_eq-measmodel.H*obj.x);
                 
                 %Calculate merged mean
                 obj.x = x_temp*mu;
