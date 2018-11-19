@@ -1,7 +1,7 @@
 function [x_hat, P_hat] = GaussianMixtureReduction(w, x, P)
 %GAUSSIANMIXTUREREDUCTION: approximate a Gaussian mixture
 %density as a single Gaussian
-%INPUT: w: normalised weight of Gaussian components --- (number
+%INPUT: w: normalised weight of Gaussian components in logarithm domain --- (number
 %           of Gaussians) x 1 vector
 %       x: means of Gaussian components --- (variable dimension)
 %           x (number of Gaussians) matrix
@@ -11,6 +11,9 @@ function [x_hat, P_hat] = GaussianMixtureReduction(w, x, P)
 %vector
 %       P_hat: approximated covariance --- (variable dimension)
 %               x (variable dimension) matrix
+
+w = exp(w);
+%Moment matching
 x_hat = x*w;
 numGaussian = length(w);
 P_hat = zeros(size(P(:,:,1)));

@@ -9,7 +9,7 @@ classdef modelgen < handle
             %                   per time scan, Poisson distributed --- scalar
             %           range_c: range of surveillance area --- 2 x 2
             %                   matrix of the form [xmin xmax;ymin ymax]
-            %OUTPUT:    obj.pdf_c: clutter (Poisson) intensity --- scalar
+            %OUTPUT:    obj.pdf_c: uniform clutter density --- scalar
             obj.P_D = P_D;
             obj.lambda_c = lambda_c;
             obj.range_c = range_c;

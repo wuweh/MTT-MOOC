@@ -1,5 +1,5 @@
 function meas_likelihood = measLikelihood(x, P, z, measmodel)
-%MEASLIKELIHOOD calculates the predicted likelihood, i.e., N(z;\bar{z},S).
+%MEASLIKELIHOOD calculates the predicted likelihood in logarithm domain, i.e., N(z;\bar{z},S).
 %INPUT:  z: measurements --- (measurement dimension) x (number
 %           of measurements) matrix
 %        x: target state mean --- (target state dimension) x 1 vector
@@ -11,7 +11,7 @@ function meas_likelihood = measLikelihood(x, P, z, measmodel)
 %                   state
 %           R: measurement noise covariance matrix
 %OUTPUT: meas_likelihood: measurement update likelihood for
-%       each measurement --- (number of measurements) x 1 vector
+%       each measurement in logarithm domain --- (number of measurements) x 1 vector
 % num_meas = size(z,2);
 
 S = measmodel.H(x)*P*measmodel.H(x)' + measmodel.R;
@@ -27,6 +27,6 @@ S = (S+S')/2;
 % temp = repmat(measmodel.h(x),[1 num_meas]);
 % meas_likelihood = exp(-0.5*size(z,measmodel.d)*log(2*pi) - 0.5*log(det_S) - 0.5*dot(z-temp,iS*(z-temp)))';
 
-meas_likelihood = mvnpdf(z',(measmodel.h(x))',S);
+meas_likelihood = log_mvnpdf(z',(measmodel.h(x))',S);
 
 end

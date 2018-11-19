@@ -42,12 +42,12 @@ classdef singletargetracker
             %           dimension) x (target state dimension) matrix
             %OUTPUT:  obj.gating.P_G: gating size in percentage --- scalar
             %         obj.gating.size: gating size --- scalar
-            %         obj.hypothesis_reduction.wmin: allowed minimum hypothesis weight --- scalar
+            %         obj.hypothesis_reduction.wmin: allowed minimum hypothesis weight in logarithm domain --- scalar
             %         obj.hypothesis_reduction.merging_threshold: merging threshold --- scalar
             %         obj.hypothesis_reduction.M: allowed maximum number of hypotheses --- scalar
             obj.gating.P_G = P_G;
             obj.gating.size = chi2inv(obj.gating.P_G,m_d);
-            obj.hypothesis_reduction.wmin = wmin;
+            obj.hypothesis_reduction.wmin = log(wmin);
             obj.hypothesis_reduction.merging_threshold = merging_threshold;
             obj.hypothesis_reduction.M = M;
             obj.x = x_0;
@@ -121,14 +121,14 @@ classdef singletargetracker
                     %Missed detection hypothesis
                     [w_miss,x_temp(:,1),P_temp(:,:,1)] = ...
                         missDetectHypothesis(obj.x,obj.P,sensormodel.P_D,obj.gating.P_G);
-                    mu(1) = w_miss*(sensormodel.lambda_c)*(sensormodel.pdf_c);
+                    mu(1) = w_miss+log(sensormodel.lambda_c)+log(sensormodel.pdf_c);
                     
                     %Measurement update hypothesis
                     [mu(2:end),x_temp(:,2:end),P_temp(:,:,2:end)] = ...
                         measUpdateHypothesis(obj.x,obj.P,z_ingate,measmodel,sensormodel.P_D);
                     
                     %Normalise likelihoods
-                    mu = mu/sum(mu);
+                    [mu,~] = normalizeLogWeights(mu);
                     
                     %Merging
                     [obj.x,obj.P] = GaussianMixtureReduction(mu,x_temp,P_temp);
@@ -154,7 +154,7 @@ classdef singletargetracker
             %                  at corresponding time step)
             
             %Initialize hypothesesWeight and multiHypotheses struct
-            hypothesesWeight = 1;
+            hypothesesWeight = 0;
             multiHypotheses = struct('x',obj.x,'P',obj.P);
             
             K = length(Z);
@@ -185,81 +185,6 @@ classdef singletargetracker
                 
                 estimates.x{k} = obj.x;
                 estimates.P{k} = obj.P;
-            end
-        end
-        
-        function obj = nearestNeighborAssocLinearKalmanUpdate(obj, z, measmodel)
-            %NEARESTNEIGHBORASSOCLINEARKALMANUPDATE performs nearest neighbor
-            %data association and linear Kalman filter update
-            %INPUT: z: measurements --- (measurement dimension) x (number
-            %       of measurements) matrix
-            S = measmodel.H*obj.P*measmodel.H' + measmodel.R;
-            nu = z - measmodel.H*repmat(obj.x,[1 size(z,2)]);
-            
-            %Perform ellipsoidal gating
-            dist = sum((inv(chol(S))'*nu).^2);
-            
-            %Choose the closest measurement to the measurement prediction
-            %in the gate. No measurement in the gate means missed detection
-            %happens
-            if min(dist) < obj.gating.size
-                K = obj.P*measmodel.H'/S;
-                obj.P = (eye(size(obj.x,1))-K*measmodel.H)*obj.P;
-                [~,nn_idx] = min(dist);
-                obj.x = obj.x + K*nu(:,nn_idx);
-            end
-        end
-        
-        function obj = probDataAssocLinearKalmanUpdate(obj, z, measmodel, sensormodel)
-            %PROBDATAASSOCLINEARKALMANUPDATE performs probablistic data
-            %association and linear kalman update
-            %INPUT: z: measurements --- (measurement dimension) x (number
-            %       of measurements) matrix
-            S = measmodel.H*obj.P*measmodel.H' + measmodel.R;
-            nu = z - measmodel.H*repmat(obj.x,[1 size(z,2)]);
-            
-            %Perform ellipsoidal gating
-            dist = sum((inv(chol(S))'*nu).^2);
-            
-            %No measurement in the gate means missed detection happens
-            if min(dist) < obj.gating.size
-                K = obj.P*measmodel.H'/S;
-                s_d = size(obj.x,1);
-                
-                %Find all the measurements in the gate
-                meas_update_idx = find(dist < obj.gating.size);
-                num_meas_ingate = length(meas_update_idx);
-                
-                %Allocate memory
-                mu = zeros(num_meas_ingate+1,1);
-                x_temp = zeros(s_d,num_meas_ingate+1);
-                P_temp = zeros(s_d,s_d,num_meas_ingate+1);
-                
-                %Missed detection
-                mu(1) = (1-sensormodel.P_D*obj.gating.P_G)*(sensormodel.lambda_c)*(sensormodel.pdf_c);
-                x_temp(:,1) = obj.x;
-                P_temp(:,:,1) = obj.P;
-                
-                %For each measurment in the gate, perform Kalman update
-                for i = 1:num_meas_ingate
-                    mu(i+1) = mvnpdf(z(:,meas_update_idx(i)),measmodel.H*obj.x,S)*sensormodel.P_D;
-                    x_temp(:,i+1) = obj.x + K*nu(:,meas_update_idx(i));
-                    P_temp(:,:,i+1) = (eye(size(obj.x,1))-K*measmodel.H)*obj.P;
-                end
-                
-                %Normalise likelihoods
-                mu = mu/sum(mu);
-                %                 %Calculate the equivalent measurement
-                %                 z_eq = mu(1)*measmodel.H*obj.x + z(:,meas_update_idx)*mu(2:end);
-                %                 obj.x = obj.x + K*(z_eq-measmodel.H*obj.x);
-                
-                %Calculate merged mean
-                obj.x = x_temp*mu;
-                %Calculate merged covariance
-                for i = 1:num_meas_ingate+1
-                    x_diff = x_temp(:,i)-obj.x;
-                    obj.P = mu(i).*(P_temp(:,:,i) + x_diff*x_diff');
-                end
             end
         end
         

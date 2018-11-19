@@ -13,7 +13,7 @@ function [w_upd, x_upd, P_upd] = measUpdateHypothesis(x, P, z, measmodel, P_D)
 %                   state
 %           R: measurement noise covariance matrix
 %       P_D: target detection probability --- scalar
-%OUTPUT: w_upd: measurement update hypothesis weight --- (number of measurements) x 1 vector
+%OUTPUT: w_upd: measurement update hypothesis weight in logarithm domain --- (number of measurements) x 1 vector
 %        x_upd: updated mean(s) --- (target state dimension) x (number of measurements) matrix
 %        P_upd: updated covariance(s) --- (target state dimension) x
 %        (target state dimension) x (number of measurements) matrix
@@ -29,6 +29,6 @@ meas_likelihood = measLikelihood(x, P, z, measmodel);
 for i = 1:num_meas
     [x_upd(:,i), P_upd(:,:,i)] = KalmanUpdate(x, P, z(:,i), measmodel);
 end
-w_upd = meas_likelihood*P_D;
+w_upd = meas_likelihood+log(P_D);
 
 end
