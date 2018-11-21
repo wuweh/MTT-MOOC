@@ -54,6 +54,25 @@ classdef singletargetracker
             obj.P = P_0;
         end
         
+        function estimates = nearestNeighborTracker2(obj, Z, motionmodel, measmodel)
+            TrackTable = {hypothesis};
+            TrackTable{1}.initialize(@GaussianDensity,obj.x,obj.P);
+            K = length(Z);
+            estimates = cell(K,1);
+            for k = 1:K
+                TrackTable{1}.predict(motionmodel);
+                %Perform gating
+                z_ingate = TrackTable{1}.density.ellipsoidalGating(Z{k},measmodel,obj.gating.size);
+                if ~isempty(z_ingate)
+                    meas_likelihood = TrackTable{1}.density.measLikelihood(z_ingate,measmodel);
+                    %Find the nearest neighbor in the gate
+                    nearest_neighbor_meas = nearestNeighbor(z_ingate, meas_likelihood);
+                    TrackTable{1}.measUpdateHypothesis(nearest_neighbor_meas,measmodel,[]);
+                end
+                estimates{k} = TrackTable{1}.returnParameters;
+            end
+        end
+        
         function estimates = nearestNeighborTracker(obj, Z, motionmodel, measmodel)
             %NEARESTNEIGHBORTRACKER tracks a single target
             %using nearest neighbor association and kalman filter
@@ -86,6 +105,7 @@ classdef singletargetracker
                 estimates.P{k} = obj.P;
             end
         end
+        
         
         function estimates = probDataAssocTracker(obj, Z, sensormodel, motionmodel, measmodel)
             %PROBDATAASSOCTRACKER tracks a single target

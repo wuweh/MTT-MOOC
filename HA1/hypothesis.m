@@ -49,10 +49,10 @@ classdef hypothesis < matlab.mixin.Copyable
             obj.log_lik = obj.log_lik + w_miss;
         end
         
-        function measUpdateHypothesis(obj,z,measmodel,P_D)
+        function meas_likelihood = measUpdateHypothesis(obj,z,measmodel,P_D)
             
             % Updated state density, compute log likelihood of measurement
-            [meas_likelihood] = obj.density.KalmanUpdate(measmodel,z);
+            [meas_likelihood] = obj.density.KalmanUpdate(z,measmodel);
             % Updated log likelihood
             obj.log_lik = obj.log_lik + meas_likelihood + log(P_D);
             

@@ -7,7 +7,7 @@ clear; close all; clc
 dbstop if error
 
 %Choose target detection probability
-P_D = 0.7;
+P_D = 0.3;
 %Choose clutter rate
 lambda_c = 30;
 
@@ -79,6 +79,7 @@ tracker = singletargetracker();
 tracker = tracker.initiator(P_G,meas_model.d,wmin,merging_threshold,M,xstart,Pstart);
 nearestNeighborEstimates = nearestNeighborTracker(tracker, measdata, motion_model, meas_model);
 nearestNeighborRMSE = RMSE(cell2mat((nearestNeighborEstimates.x)'),cell2mat(targetdata.X'));
+% nearestNeighborRMSE = RMSE(cell2mat(cellfun(@(x) x.x, nearestNeighborEstimates, 'UniformOutput', false)'),cell2mat(targetdata.X'));
 
 %% PDA tracker
 tracker = tracker.initiator(P_G,meas_model.d,wmin,merging_threshold,M,xstart,Pstart);
