@@ -1,6 +1,6 @@
 function [x_hat, P_hat] = GaussianMixtureReduction(w, x, P)
 %GAUSSIANMIXTUREREDUCTION: approximate a Gaussian mixture
-%density as a single Gaussian
+%density as a single Gaussian using a greedy approach
 %INPUT: w: normalised weight of Gaussian components in logarithm domain --- (number
 %           of Gaussians) x 1 vector
 %       x: means of Gaussian components --- (variable dimension)
