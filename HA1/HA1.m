@@ -7,16 +7,16 @@ clear; close all; clc
 dbstop if error
 
 %Choose target detection probability
-P_D = 0.3;
+P_D = 0.9;
 %Choose clutter rate
 lambda_c = 30;
 
 %Choose linear or nonlinear scenario
-scenario_type = 'nonlinear';
+scenario_type = 'Nonlinear Gaussian';
 
 %% Create tracking scenario
 switch(scenario_type)
-    case 'linear'
+    case 'Linear Gaussian'
         %Creat sensor model
         range_c = [-1000 1000;-1000 1000];
         sensor_model = modelgen.sensormodel(P_D,lambda_c,range_c);
@@ -24,9 +24,9 @@ switch(scenario_type)
         %Creat ground truth model
         nbirths = 1;
         K = 100;
-        xstart = [0; 0; 10; 10];
-        Pstart = eye(4);
-        ground_truth = modelgen.groundtruth(nbirths,xstart,1,K+1,K);
+        initial_state.x = [0; 0; 10; 10];
+        initial_state.P = eye(4);
+        ground_truth = modelgen.groundtruth(nbirths,initial_state.x,1,K+1,K);
         
         %Creat linear motion model
         T = 1;
@@ -36,7 +36,7 @@ switch(scenario_type)
         %Create linear measurement model
         sigma_r = 10;
         meas_model = measmodel.cvmeasmodel(sigma_r);
-    case 'nonlinear'
+    case 'Nonlinear Gaussian'
         %Create sensor model
         %Range/bearing measurement range
         range_c = [-1000 1000;-pi pi];
@@ -45,9 +45,9 @@ switch(scenario_type)
         %Creat ground truth model
         nbirths = 1;
         K = 100;
-        xstart = [0; 0; 10; 0; pi/180];
-        Pstart = diag([1 1 1 1*pi/180 1*pi/180].^2);
-        ground_truth = modelgen.groundtruth(nbirths,xstart,1,K+1,K);
+        initial_state.x = [0; 0; 10; 0; pi/180];
+        initial_state.P = diag([1 1 1 1*pi/180 1*pi/180].^2);
+        ground_truth = modelgen.groundtruth(nbirths,initial_state.x,1,K+1,K);
         
         %Create nonlinear motion model (coordinate turn)
         T = 1;
@@ -74,22 +74,19 @@ wmin = 1e-4;
 merging_threshold = 4;
 M = 100;
 tracker = singletargetracker();
+tracker = tracker.initialize(@GaussianDensity,P_G,meas_model.d,wmin,merging_threshold,M);
 
 %% NN tracker
-tracker = tracker.initiator(P_G,meas_model.d,wmin,merging_threshold,M,xstart,Pstart);
-nearestNeighborEstimates = nearestNeighborTracker(tracker, measdata, motion_model, meas_model);
-nearestNeighborRMSE = RMSE(cell2mat((nearestNeighborEstimates.x)'),cell2mat(targetdata.X'));
-% nearestNeighborRMSE = RMSE(cell2mat(cellfun(@(x) x.x, nearestNeighborEstimates, 'UniformOutput', false)'),cell2mat(targetdata.X'));
+nearestNeighborEstimates = nearestNeighborTracker(tracker, initial_state, measdata, motion_model, meas_model);
+nearestNeighborRMSE = RMSE(cell2mat(cellfun(@(x) x.x, nearestNeighborEstimates,'UniformOutput',false)'),cell2mat(targetdata.X'));
 
 %% PDA tracker
-tracker = tracker.initiator(P_G,meas_model.d,wmin,merging_threshold,M,xstart,Pstart);
-probDataAssocEstimates = probDataAssocTracker(tracker, measdata, sensor_model, motion_model, meas_model);
-probalisticDataAssocRMSE = RMSE(cell2mat((probDataAssocEstimates.x)'),cell2mat(targetdata.X'));
+probDataAssocEstimates = probDataAssocTracker(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
+probDataAssocRMSE = RMSE(cell2mat(cellfun(@(x) x.x, probDataAssocEstimates,'UniformOutput',false)'),cell2mat(targetdata.X'));
 
 %% Multi-hypothesis tracker
-tracker = tracker.initiator(P_G,meas_model.d,wmin,merging_threshold,M,xstart,Pstart);
-multiHypothesesEstimates = multiHypothesesTracker(tracker, measdata, sensor_model, motion_model, meas_model);
-multiHypothesesRMSE = RMSE(cell2mat((multiHypothesesEstimates.x)'),cell2mat(targetdata.X'));
+multiHypothesesEstimates = multiHypothesesTracker(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
+multiHypothesesRMSE = RMSE(cell2mat(cellfun(@(x) x.x, multiHypothesesEstimates,'UniformOutput',false)'),cell2mat(targetdata.X'));
 
 %% Ploting
 figure

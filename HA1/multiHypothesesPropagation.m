@@ -43,8 +43,9 @@ hypothesesWeightUpdate = zeros(num_hypotheses,1);
 %For each hypothesis, generate missed detection hypotheses
 multiHypothesesUpdate = struct('x',0,'P',0);
 for i = 1:num_hypotheses
-    [hypothesesWeightUpdate(i,1), multiHypothesesUpdate(i).x, multiHypothesesUpdate(i).P] = ...
-        missDetectHypothesis(multiHypotheses(i).x, multiHypotheses(i).P, sensormodel.P_D, gating.P_G);
+    multiHypothesesUpdate(i).x = multiHypotheses(i).x;
+    multiHypothesesUpdate(i).P = multiHypotheses(i).P;
+    hypothesesWeightUpdate(i,1) = missDetectHypothesis(sensormodel.P_D, gating.P_G);
     hypothesesWeightUpdate(i,1) = hypothesesWeight(i)+hypothesesWeightUpdate(i,1)+log(sensormodel.lambda_c)+log(sensormodel.pdf_c);
 end
 
@@ -59,8 +60,8 @@ for i = 1:num_hypotheses
         for j = 1:length(wupd)
             idx = idx + 1;
             hypothesesWeightUpdate(idx,1) = wupd(j)+hypothesesWeight(i);
-            multiHypothesesUpdate(idx).x = xupd(:,j);
-            multiHypothesesUpdate(idx).P = Pupd(:,:,j);
+            multiHypothesesUpdate(idx,1).x = xupd(:,j);
+            multiHypothesesUpdate(idx,1).P = Pupd(:,:,j);
         end
     end
 end

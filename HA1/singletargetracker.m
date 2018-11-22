@@ -22,61 +22,36 @@ classdef singletargetracker
     
     properties
         gating  %specify gating parameter
-        x       %target state mean --- (target state dimension) x 1 vector
-        P       %target state covariance --- (target state dimension) x (target state dimension) matrix
         hypothesis_reduction %specify hypothesis reduction parameter
+        density
     end
     
     methods
         
-        function obj = initiator(obj,P_G,m_d,wmin,merging_threshold,M,x_0,P_0)
+        function obj = initialize(obj,density_class_handle,P_G,m_d,wmin,merging_threshold,M)
             %INITIATOR initiates singletargetracker class
             %INPUT: P_G: gating size in percentage --- scalar
             %       m_d: measurement dimension --- scalar
             %       wmin: allowed minimum hypothesis weight --- scalar
             %       merging_threshold: merging threshold --- scalar
             %       M: allowed maximum number of hypotheses --- scalar
-            %       x_0: mean of target initial state --- (target state
-            %           dimension) x 1 vector
-            %       P_0: covariance of target initial state (target state
-            %           dimension) x (target state dimension) matrix
             %OUTPUT:  obj.gating.P_G: gating size in percentage --- scalar
             %         obj.gating.size: gating size --- scalar
             %         obj.hypothesis_reduction.wmin: allowed minimum hypothesis weight in logarithm domain --- scalar
             %         obj.hypothesis_reduction.merging_threshold: merging threshold --- scalar
             %         obj.hypothesis_reduction.M: allowed maximum number of hypotheses --- scalar
+            obj.density = feval(density_class_handle);
             obj.gating.P_G = P_G;
             obj.gating.size = chi2inv(obj.gating.P_G,m_d);
             obj.hypothesis_reduction.wmin = log(wmin);
             obj.hypothesis_reduction.merging_threshold = merging_threshold;
             obj.hypothesis_reduction.M = M;
-            obj.x = x_0;
-            obj.P = P_0;
         end
         
-        function estimates = nearestNeighborTracker2(obj, Z, motionmodel, measmodel)
-            TrackTable = {hypothesis};
-            TrackTable{1}.initialize(@GaussianDensity,obj.x,obj.P);
-            K = length(Z);
-            estimates = cell(K,1);
-            for k = 1:K
-                TrackTable{1}.predict(motionmodel);
-                %Perform gating
-                z_ingate = TrackTable{1}.density.ellipsoidalGating(Z{k},measmodel,obj.gating.size);
-                if ~isempty(z_ingate)
-                    meas_likelihood = TrackTable{1}.density.measLikelihood(z_ingate,measmodel);
-                    %Find the nearest neighbor in the gate
-                    nearest_neighbor_meas = nearestNeighbor(z_ingate, meas_likelihood);
-                    TrackTable{1}.measUpdateHypothesis(nearest_neighbor_meas,measmodel,[]);
-                end
-                estimates{k} = TrackTable{1}.returnParameters;
-            end
-        end
-        
-        function estimates = nearestNeighborTracker(obj, Z, motionmodel, measmodel)
+        function estimates = nearestNeighborTracker(obj, state, Z, motionmodel, measmodel)
             %NEARESTNEIGHBORTRACKER tracks a single target
             %using nearest neighbor association and kalman filter
-            %INPUT: Z: cell array of size (total tracking time, 1), each cell 
+            %INPUT: Z: cell array of size (total tracking time, 1), each cell
             %          stores measurements of size (measurement dimension) x
             %          (number of measurements at corresponding time step)
             %OUTPUT:estimates: a structure with two fields:
@@ -84,33 +59,32 @@ classdef singletargetracker
             %                  of size (target state dimension) x (number of targets
             %                  at corresponding time step)
             %               P: cell array of size (total tracking time, 1), each cell stores estimated target states
-            %                  uncertainty covariance of size (target state dimension) x 
+            %                  uncertainty covariance of size (target state dimension) x
             %                  (target state dimension) x (number of targets
             %                  at corresponding time step)
             
             K = length(Z);
-            estimates.x = cell(K,1);
-            estimates.P = cell(K,1);
+            estimates = cell(K,1);
             for k = 1:K
-                [obj.x, obj.P] = KalmanPredict(obj.x, obj.P, motionmodel);
+                state = obj.density.predict(state, motionmodel);
                 %Perform gating
-                z_ingate = ellipsoidalGating(obj.x, obj.P, Z{k}, measmodel, obj.gating.size);
+                z_ingate = obj.density.ellipsoidalGating(state, Z{k}, measmodel, obj.gating.size);
                 if ~isempty(z_ingate)
-                    meas_likelihood = measLikelihood(obj.x, obj.P, z_ingate, measmodel);
+                    meas_likelihood = obj.density.measLikelihood(state, z_ingate, measmodel);
                     %Find the nearest neighbor in the gate
-                    nearest_neighbor_meas = nearestNeighbor(z_ingate, meas_likelihood);
-                    [obj.x, obj.P] = KalmanUpdate(obj.x, obj.P, nearest_neighbor_meas, measmodel);
+                    [~, nearest_neighbor_assoc] = max(meas_likelihood);
+                    nearest_neighbor_meas = z_ingate(:,nearest_neighbor_assoc);
+                    state = obj.density.update(state, nearest_neighbor_meas, measmodel);
                 end
-                estimates.x{k} = obj.x;
-                estimates.P{k} = obj.P;
+                estimates{k} = state;
             end
         end
         
         
-        function estimates = probDataAssocTracker(obj, Z, sensormodel, motionmodel, measmodel)
+        function estimates = probDataAssocTracker(obj, state, Z, sensormodel, motionmodel, measmodel)
             %PROBDATAASSOCTRACKER tracks a single target
             %using probalistic data association and kalman filter
-            %INPUT: Z: cell array of size (total tracking time, 1), each cell 
+            %INPUT: Z: cell array of size (total tracking time, 1), each cell
             %          stores measurements of size (measurement dimension) x
             %          (number of measurements at corresponding time step)
             %OUTPUT:estimates: a structure with two fields:
@@ -118,50 +92,49 @@ classdef singletargetracker
             %                  of size (target state dimension) x (number of targets
             %                  at corresponding time step)
             %               P: cell array of size (total tracking time, 1), each cell stores estimated target states
-            %                  uncertainty covariance of size (target state dimension) x 
+            %                  uncertainty covariance of size (target state dimension) x
             %                  (target state dimension) x (number of targets
             %                  at corresponding time step)
             K = length(Z);
-            estimates.x = cell(K,1);
-            estimates.P = cell(K,1);
+            estimates = cell(K,1);
             for k = 1:K
                 %Prediction
-                [obj.x, obj.P] = KalmanPredict(obj.x, obj.P, motionmodel);
+                state = obj.density.predict(state, motionmodel);
                 
                 %Gating
-                z_ingate = ellipsoidalGating(obj.x, obj.P, Z{k}, measmodel, obj.gating.size);
+                z_ingate = obj.density.ellipsoidalGating(state, Z{k}, measmodel, obj.gating.size);
                 
                 if ~isempty(z_ingate)
                     %Allocate memory
                     num_meas_ingate = size(z_ingate,2);
                     mu = zeros(num_meas_ingate+1,1);
-                    x_temp = zeros(motionmodel.d,num_meas_ingate+1);
-                    P_temp = zeros(motionmodel.d,motionmodel.d,num_meas_ingate+1);
                     
                     %Missed detection hypothesis
-                    [w_miss,x_temp(:,1),P_temp(:,:,1)] = ...
-                        missDetectHypothesis(obj.x,obj.P,sensormodel.P_D,obj.gating.P_G);
+                    hypothesized_state(1,1) = state;
+                    w_miss = hypothesisUpdate.undetected(sensormodel.P_D,obj.gating.P_G);
                     mu(1) = w_miss+log(sensormodel.lambda_c)+log(sensormodel.pdf_c);
                     
                     %Measurement update hypothesis
-                    [mu(2:end),x_temp(:,2:end),P_temp(:,:,2:end)] = ...
-                        measUpdateHypothesis(obj.x,obj.P,z_ingate,measmodel,sensormodel.P_D);
+                    for i = 1:num_meas_ingate
+                        [hypothesized_state(i+1,1),mu(i+1)] = hypothesisUpdate.detected(obj.density,state,z_ingate(:,i),measmodel,sensormodel.P_D);
+                    end
                     
                     %Normalise likelihoods
                     [mu,~] = normalizeLogWeights(mu);
                     
                     %Merging
-                    [obj.x,obj.P] = GaussianMixtureReduction(mu,x_temp,P_temp);
+                    state = obj.density.momentMatching(mu, hypothesized_state);
+                    %Free memory
+                    clear hypothesized_state;
                 end
-                estimates.x{k} = obj.x;
-                estimates.P{k} = obj.P;
+                estimates{k} = state;
             end
         end
         
-        function estimates = multiHypothesesTracker(obj, Z, sensormodel, motionmodel, measmodel)
+        function estimates = multiHypothesesTracker(obj, state, Z, sensormodel, motionmodel, measmodel)
             %MULTIHYPOTHESESTRACKER tracks a single target using multiple
             %hypotheses
-            %INPUT: Z: cell array of size (total tracking time, 1), each cell 
+            %INPUT: Z: cell array of size (total tracking time, 1), each cell
             %          stores measurements of size (measurement dimension) x
             %          (number of measurements at corresponding time step)
             %OUTPUT:estimates: a structure with two fields:
@@ -169,22 +142,55 @@ classdef singletargetracker
             %                  of size (target state dimension) x (number of targets
             %                  at corresponding time step)
             %               P: cell array of size (total tracking time, 1), each cell stores estimated target states
-            %                  uncertainty covariance of size (target state dimension) x 
+            %                  uncertainty covariance of size (target state dimension) x
             %                  (target state dimension) x (number of targets
             %                  at corresponding time step)
             
             %Initialize hypothesesWeight and multiHypotheses struct
-            hypothesesWeight = 0;
-            multiHypotheses = struct('x',obj.x,'P',obj.P);
+            hypothesesWeight(1,1) = 0;
+            multiHypotheses(1,1) = state;
             
             K = length(Z);
-            estimates.x = cell(K,1);
-            estimates.P = cell(K,1);
+            estimates = cell(K,1);
             for k = 1:K
                 %Generate multiple new hypotheses
-                [hypothesesWeight, multiHypotheses] = ...
-                    multiHypothesesPropagation(hypothesesWeight, multiHypotheses, ...
-                    Z{k}, obj.gating, sensormodel, motionmodel, measmodel);
+                num_hypotheses = length(multiHypotheses);
+                
+                %Prediction
+                for i = 1:num_hypotheses
+                    multiHypotheses(i) = obj.density.predict(multiHypotheses(i), motionmodel);
+                end
+                
+                hypothesesWeightUpdate = zeros(num_hypotheses,1);
+                
+                %For each hypothesis, generate missed detection hypotheses
+                for i = 1:num_hypotheses
+                    multiHypothesesUpdate(i,1) = multiHypotheses(i);
+                    w_miss = hypothesisUpdate.undetected(sensormodel.P_D, obj.gating.P_G);
+                    hypothesesWeightUpdate(i,1) = hypothesesWeight(i)+w_miss+log(sensormodel.lambda_c)+log(sensormodel.pdf_c);
+                end
+                
+                %For each hypothesis, generate measurement update hypotheses
+                idx = num_hypotheses;
+                for i = 1:num_hypotheses
+                    %Perform gating for each hypothesis, only generate hypotheses for
+                    %measurements in the gate
+                    z_ingate = obj.density.ellipsoidalGating(multiHypotheses(i), Z{k}, measmodel, obj.gating.size);
+                    if ~isempty(z_ingate)
+                        for j = 1:size(z_ingate,2)
+                            idx = idx + 1;
+                            [multiHypothesesUpdate(idx,1),wupd] = hypothesisUpdate.detected(obj.density,multiHypotheses(i), z_ingate(:,j), measmodel, sensormodel.P_D);
+                            hypothesesWeightUpdate(idx,1) = wupd+hypothesesWeight(i);
+                        end
+                    end
+                end
+
+                multiHypotheses = multiHypothesesUpdate;
+                hypothesesWeight = hypothesesWeightUpdate;
+                
+                %Normalize hypotheses weights
+                % hypothesesWeightUpdate = hypothesesWeightUpdate/sum(hypothesesWeightUpdate);
+                [hypothesesWeight,~] = normalizeLogWeights(hypothesesWeight);
                 
                 %Prune hypotheses with weight smaller than the specified threshold
                 [hypothesesWeight, multiHypotheses] = hypothesisReduction.prune(hypothesesWeight,...
@@ -196,15 +202,11 @@ classdef singletargetracker
                 
                 %Merge hypotheses within small enough Mahalanobis distance
                 [hypothesesWeight,multiHypotheses] = hypothesisReduction.merge...
-                    (hypothesesWeight,multiHypotheses,obj.hypothesis_reduction.merging_threshold);
+                    (hypothesesWeight,multiHypotheses,obj.hypothesis_reduction.merging_threshold,obj.density);
                 
                 %Extract target state from the hypothesis with the highest weight
                 [~,idx] = max(hypothesesWeight);
-                obj.x = multiHypotheses(idx).x;
-                obj.P = multiHypotheses(idx).P;
-                
-                estimates.x{k} = obj.x;
-                estimates.P{k} = obj.P;
+                estimates{k} = multiHypotheses(idx);
             end
         end
         

@@ -21,6 +21,8 @@ S = (S+S')/2;
 nu = z - repmat(measmodel.h(x),[1 zlength]);
 dist= sum((inv(Vs)'*nu).^2);
 
+
+
 in_gate(dist<gating_size) = true;
 z_ingate = z(:,in_gate);
 

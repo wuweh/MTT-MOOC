@@ -30,9 +30,5 @@ K  = P*Hx'*iS;
 x_upd = x + K*(z - measmodel.h(x));
 %Covariance update
 P_upd = (eye(size(x,1)) - K*Hx)*P;
-%Make sure P_upd is symmetric
-P_upd = 0.5*(P_upd + P_upd');
-
-
 
 end

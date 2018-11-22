@@ -1,4 +1,4 @@
-function [w_miss, x, P] = missDetectHypothesis(x, P, P_D, P_G)
+function [w_miss] = missDetectHypothesis(P_D, P_G)
 %MISSDETECTHYPOTHESIS calculates the likelihood of missed detection
 %INPUT: P_D: detection probability
 %       P_G: gating size in percentage
