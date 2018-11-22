@@ -79,23 +79,23 @@ tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_
 
 %% NN tracker
 nearestNeighborEstimates = nearestNeighborTracker(tracker, initial_state, measdata, motion_model, meas_model);
-nearestNeighborRMSE = RMSE(cell2mat(nearestNeighborEstimates'),cell2mat(targetdata.X'));
+nearestNeighborRMSE = RMSE(nearestNeighborEstimates,targetdata.X);
 
 %% PDA tracker
 probDataAssocEstimates = probDataAssocTracker(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
-probDataAssocRMSE = RMSE(cell2mat(probDataAssocEstimates'),cell2mat(targetdata.X'));
+probDataAssocRMSE = RMSE(probDataAssocEstimates,targetdata.X);
 
 %% Multi-hypothesis tracker
 multiHypothesesEstimates = multiHypothesesTracker(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
-multiHypothesesRMSE = RMSE(cell2mat(multiHypothesesEstimates'),cell2mat(targetdata.X'));
+multiHypothesesRMSE = RMSE(multiHypothesesEstimates,targetdata.X);
 
 %% Ploting
 figure
 hold on
 true_state = cell2mat(targetdata.X');
-NN_estimated_state = cell2mat((nearestNeighborEstimates)');
-PDA_estimated_state = cell2mat((probDataAssocEstimates'));
-MH_estimated_state = cell2mat((multiHypothesesEstimates'));
+NN_estimated_state = cell2mat(nearestNeighborEstimates');
+PDA_estimated_state = cell2mat(probDataAssocEstimates');
+MH_estimated_state = cell2mat(multiHypothesesEstimates');
 plot(true_state(1,:), true_state(2,:), '-o','Linewidth', 2)
 plot(NN_estimated_state(1,:), NN_estimated_state(2,:), 'Linewidth', 2)
 plot(PDA_estimated_state(1,:), PDA_estimated_state(2,:), 'Linewidth', 2)

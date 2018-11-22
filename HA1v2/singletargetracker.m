@@ -160,6 +160,8 @@ classdef singletargetracker
                     multiHypotheses(i) = obj.density.predict(multiHypotheses(i), motionmodel);
                 end
                 
+                hypothesesWeightUpdate = zeros(num_hypotheses,1);
+                
                 %For each hypothesis, generate missed detection hypotheses
                 for i = 1:num_hypotheses
                     multiHypothesesUpdate(i,1) = multiHypotheses(i);
