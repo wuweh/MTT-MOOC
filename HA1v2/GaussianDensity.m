@@ -2,15 +2,15 @@ classdef GaussianDensity
     
     methods (Static)
         
-        function expected_value = expectedValue(state)
-            expected_value = state.x;
+        function expected_value = expectedValue(density)
+            expected_value = density.x;
         end
         
-        function covariance = covariance(state)
-            covariance = state.P;
+        function covariance = covariance(density)
+            covariance = density.P;
         end
         
-        function state_pred = predict(state, motionmodel)
+        function density_pred = predict(density, motionmodel)
             %PREDICT performs linear/nonlinear (Extended) Kalman prediction step
             %INPUT: state: a structure with two fields:
             %                   x: object state mean --- (state dimension) x 1 vector
@@ -20,12 +20,12 @@ classdef GaussianDensity
             %                   x: predicted object state mean --- (state dimension) x 1 vector
             %                   P: predicted object state covariance --- (state dimension) x (state dimension) matrix
             
-            state_pred.x = motionmodel.f(state.x);
-            state_pred.P = motionmodel.F(state.x)*state.P*motionmodel.F(state.x)'+motionmodel.Q;
+            density_pred.x = motionmodel.f(density.x);
+            density_pred.P = motionmodel.F(density.x)*density.P*motionmodel.F(density.x)'+motionmodel.Q;
             
         end
         
-        function state_upd = update(state_pred, z, measmodel)
+        function density_upd = update(density_pred, z, measmodel)
             %UPDATE performs linear/nonlinear (Extended) Kalman update step
             %INPUT: z: measurements --- (measurement dimension) x 1 vector
             %       state_pred: a structure with two fields:
@@ -37,9 +37,9 @@ classdef GaussianDensity
             %                   P: updated object state covariance --- (state dimension) x (state dimension) matrix
             
             %Measurement model Jacobian
-            Hx = measmodel.H(state_pred.x);
+            Hx = measmodel.H(density_pred.x);
             %Innovation covariance
-            S = Hx*state_pred.P*Hx' + measmodel.R;
+            S = Hx*density_pred.P*Hx' + measmodel.R;
             %Make sure matrix S is positive definite
             S = (S+S')/2;
             
@@ -48,16 +48,16 @@ classdef GaussianDensity
 %             inv_sqrt_S = inv(Vs);
 %             iS= inv_sqrt_S*inv_sqrt_S';
 %             K  = state_pred.P*Hx'*iS;
-            K = (state_pred.P*Hx')/S;
+            K = (density_pred.P*Hx')/S;
             
             %State update
-            state_upd.x = state_pred.x + K*(z - measmodel.h(state_pred.x));
+            density_upd.x = density_pred.x + K*(z - measmodel.h(density_pred.x));
             %Covariance update
-            state_upd.P = (eye(size(state_pred.x,1)) - K*Hx)*state_pred.P;
+            density_upd.P = (eye(size(density_pred.x,1)) - K*Hx)*density_pred.P;
             
         end
         
-        function predict_likelihood = predictedLikelihood(state_pred,z,measmodel)
+        function predict_likelihood = predictedLikelihood(density_pred,z,measmodel)
             %PREDICTLIKELIHOOD calculates the predicted likelihood in logarithm domain
             %INPUT:  z: measurements --- (measurement dimension) x (number of measurements) matrix
             %        state_pred: a structure with two fields:
@@ -66,16 +66,16 @@ classdef GaussianDensity
             %        measmodel: a structure specifies the measurement model parameters
             %OUTPUT: meas_likelihood: measurement update likelihood for each measurement in logarithm domain --- (number of measurements) x 1 vector
             %Measurement model Jacobian
-            Hx = measmodel.H(state_pred.x);
+            Hx = measmodel.H(density_pred.x);
             %Innovation covariance
-            S = Hx*state_pred.P*Hx' + measmodel.R;
+            S = Hx*density_pred.P*Hx' + measmodel.R;
             %Make sure matrix S is positive definite
             S = (S+S')/2;
             %Calculate predicted likelihood
-            predict_likelihood = log_mvnpdf(z',(measmodel.h(state_pred.x))',S);
+            predict_likelihood = log_mvnpdf(z',(measmodel.h(density_pred.x))',S);
         end
         
-        function z_ingate = ellipsoidalGating(state_pred, z, measmodel, gating_size)
+        function z_ingate = ellipsoidalGating(density_pred, z, measmodel, gating_size)
             %ELLIPSOIDALGATING performs ellipsoidal gating for a single target
             %INPUT:  z: measurements --- (measurement dimension) x (number of measurements) matrix
             %        state_pred: a structure with two fields:
@@ -88,18 +88,18 @@ classdef GaussianDensity
             zlength = size(z,2);
             in_gate = false(zlength,1);
             
-            S = measmodel.H(state_pred.x)*state_pred.P*measmodel.H(state_pred.x)' + measmodel.R;
+            S = measmodel.H(density_pred.x)*density_pred.P*measmodel.H(density_pred.x)' + measmodel.R;
             %Make sure matrix S is positive definite
             S = (S+S')/2;
             
-            nu = z - repmat(measmodel.h(state_pred.x),[1 zlength]);
+            nu = z - repmat(measmodel.h(density_pred.x),[1 zlength]);
             dist = diag(nu.'*(S\nu));
             
             in_gate(dist<gating_size) = true;
             z_ingate = z(:,in_gate);
         end
         
-        function state = momentMatching(w, states)
+        function density = momentMatching(w, mixture_density)
             %MOMENTMATCHING: approximate a Gaussian mixture density as a single Gaussian using moment matching
             %INPUT: w: normalised weight of Gaussian components in logarithm domain --- (number of Gaussians) x 1 vector
             %       states: structure array of size (number of Gaussian components x 1), each structure has two fields
@@ -110,23 +110,23 @@ classdef GaussianDensity
             %               P_hat: approximated covariance --- (variable dimension) x (variable dimension) matrix
             
             if length(w) == 1
-                state = states;
+                density = mixture_density;
                 return;
             end
             
             w = exp(w);
             %Moment matching
-            state.x = [states(:).x]*w;
+            density.x = [mixture_density(:).x]*w;
             numGaussian = length(w);
-            state.P = zeros(size(states(1).P));
+            density.P = zeros(size(mixture_density(1).P));
             for i = 1:numGaussian
                 %Add spread of means
-                x_diff = states(i).x - state.x;
-                state.P = state.P + w(i).*(states(i).P + x_diff*x_diff');
+                x_diff = mixture_density(i).x - density.x;
+                density.P = density.P + w(i).*(mixture_density(i).P + x_diff*x_diff');
             end
         end
         
-        function [w_hat,states_hat] = mixtureReduction(w,states,threshold)
+        function [w_hat,mixture_density_hat] = mixtureReduction(w,mixture_density,threshold)
             %MIXTUREREDUCTION: uses a greedy merging method to reduce the number of Gaussian components for a Gaussian mixture density
             %INPUT: w: normalised weight of Gaussian components in logarithm domain --- (number of Gaussians) x 1 vector
             %       states: structure array of size (number of Gaussian components x 1), each structure has two fields
@@ -140,12 +140,12 @@ classdef GaussianDensity
             
             if length(w) == 1
                 w_hat = w;
-                states_hat = states;
+                mixture_density_hat = mixture_density;
                 return;
             end
 
             %Index set of components
-            I = 1:length(states);
+            I = 1:length(mixture_density);
             el = 1;
             
             while ~isempty(I)
@@ -154,8 +154,8 @@ classdef GaussianDensity
                 [~,j] = max(w);
 
                 for i = I
-                    temp = states(i).x-states(j).x;
-                    val = diag(temp.'*(states(j).P\temp));
+                    temp = mixture_density(i).x-mixture_density(j).x;
+                    val = diag(temp.'*(mixture_density(j).P\temp));
                     %Find other similar components in the sense of small Mahalanobis distance
                     if val <= threshold
                         Ij= [ Ij i ];
@@ -164,7 +164,7 @@ classdef GaussianDensity
                 
                 %Merge components by moment matching
                 [temp,w_hat(el,1)] = normalizeLogWeights(w(Ij));
-                states_hat(el,1) = GaussianDensity.momentMatching(temp, states(Ij));
+                mixture_density_hat(el,1) = GaussianDensity.momentMatching(temp, mixture_density(Ij));
                 
                 %Remove indices of merged components from index set
                 I = setdiff(I,Ij);

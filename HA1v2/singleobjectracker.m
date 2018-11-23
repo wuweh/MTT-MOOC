@@ -102,7 +102,8 @@ classdef singleobjectracker
                     mu(1) = w_miss+log(sensormodel.lambda_c)+log(sensormodel.pdf_c);
                     
                     %Measurement update hypothesis
-                    [hypothesized_state(2:num_meas_ingate+1,1),mu(2:num_meas_ingate+1)] = singleobjecthypothesis.detected(obj.density,state,z_ingate,measmodel,sensormodel.P_D);
+                    [hypothesized_state(2:num_meas_ingate+1,1),mu(2:num_meas_ingate+1)] = ...
+                        singleobjecthypothesis.detected(obj.density,state,z_ingate,measmodel,sensormodel.P_D);
                     
                     %Normalise likelihoods
                     [mu,~] = normalizeLogWeights(mu);
@@ -185,6 +186,7 @@ classdef singleobjectracker
                 estimates{k} = obj.density.expectedValue(multiHypotheses(idx));
             end
         end
+        
         
     end
 end

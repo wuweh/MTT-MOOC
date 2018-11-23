@@ -19,10 +19,10 @@ classdef singleobjecthypothesis
             %       z: measurement --- (measurement dimension x 1) vector
             %       measmodel: a structure specifies measurement model
             %       P_D: object detection probability --- scalar
-            %OUTPUT:state: a structure with two fields:
+            %OUTPUT:state_upd: a structure array of size (number of measurements x 1) with two fields:
             %                x: updated state mean --- (state dimension) x 1 vector
             %                P: updated state covariance --- (state dimension) x (state dimension) matrix
-            %       w_upd: measurement update likelihood in logarithm --- scalar
+            %       w_upd: measurement update likelihood in logarithm --- (number of measurements x 1) vector
             
             % Updated log likelihood
             predict_likelihood = density.predictedLikelihood(state, z, measmodel);
