@@ -1,19 +1,15 @@
-classdef singletargetracker
-    %SINGLETARGETTRACKER is a class containing functions to track a single
-    %target in clutter and missed detection. NO track initiation&deletion
-    %logic.
+classdef singleobjectracker
+    %SINGLEOBJECTRACKER is a class containing functions to track a single object in clutter.
     %Model structures need to be called:
     %sensormodel: a structure specifies the sensor parameters
-    %           P_D: target detection probability --- scalar
-    %           lambda_c: average number of clutter measurements
-    %                   per time scan, Poisson distributed --- scalar
+    %           P_D: object detection probability --- scalar
+    %           lambda_c: average number of clutter measurements per time scan, Poisson distributed --- scalar
     %           pdf_c: clutter (Poisson) intensity --- scalar
     %motionmodel: a structure specifies the motion model parameters
-    %           d: target state dimension --- scalar
+    %           d: object state dimension --- scalar
     %           F: function handle return transition/Jacobian matrix
-    %           f: function handle return predicted targe state
+    %           f: function handle return predicted object state
     %           Q: motion noise covariance matrix
-    
     %measmodel: a structure specifies the measurement model parameters
     %           d: measurement dimension --- scalar
     %           H: function handle return transition/Jacobian matrix
@@ -23,19 +19,21 @@ classdef singletargetracker
     properties
         gating  %specify gating parameter
         hypothesis_reduction %specify hypothesis reduction parameter
-        density
+        density %density class handle
     end
     
     methods
         
         function obj = initialize(obj,density_class_handle,P_G,m_d,wmin,merging_threshold,M)
-            %INITIATOR initiates singletargetracker class
-            %INPUT: P_G: gating size in percentage --- scalar
+            %INITIATOR initializes singleobjectracker class
+            %INPUT: density_class_handle: density class handle
+            %       P_G: gating size in percentage --- scalar
             %       m_d: measurement dimension --- scalar
             %       wmin: allowed minimum hypothesis weight --- scalar
             %       merging_threshold: merging threshold --- scalar
             %       M: allowed maximum number of hypotheses --- scalar
-            %OUTPUT:  obj.gating.P_G: gating size in percentage --- scalar
+            %OUTPUT:  obj.density: density class handle
+            %         obj.gating.P_G: gating size in percentage --- scalar
             %         obj.gating.size: gating size --- scalar
             %         obj.hypothesis_reduction.wmin: allowed minimum hypothesis weight in logarithm domain --- scalar
             %         obj.hypothesis_reduction.merging_threshold: merging threshold --- scalar
@@ -49,19 +47,13 @@ classdef singletargetracker
         end
         
         function estimates = nearestNeighborTracker(obj, state, Z, motionmodel, measmodel)
-            %NEARESTNEIGHBORTRACKER tracks a single target
-            %using nearest neighbor association and kalman filter
-            %INPUT: Z: cell array of size (total tracking time, 1), each cell
-            %          stores measurements of size (measurement dimension) x
-            %          (number of measurements at corresponding time step)
-            %OUTPUT:estimates: a structure with two fields:
-            %               x: cell array of size (total tracking time, 1), each cell stores estimated target states
-            %                  of size (target state dimension) x (number of targets
-            %                  at corresponding time step)
-            %               P: cell array of size (total tracking time, 1), each cell stores estimated target states
-            %                  uncertainty covariance of size (target state dimension) x
-            %                  (target state dimension) x (number of targets
-            %                  at corresponding time step)
+            %NEARESTNEIGHBORTRACKER tracks a single object using nearest neighbor association
+            %INPUT: state: a structure with two fields:
+            %                x: object initial state mean --- (object state dimension) x 1 vector
+            %                P: object initial state covariance --- (object state dimension) x (object state dimension) matrix
+            %       Z: cell array of size (total tracking time, 1), each cell stores measurements of 
+            %            size (measurement dimension) x (number of measurements at corresponding time step)
+            %OUTPUT:estimates: cell array of size (total tracking time, 1), each cell stores estimated object state of size (object state dimension) x 1
             
             K = length(Z);
             estimates = cell(K,1);
@@ -70,9 +62,9 @@ classdef singletargetracker
                 %Perform gating
                 z_ingate = obj.density.ellipsoidalGating(state, Z{k}, measmodel, obj.gating.size);
                 if ~isempty(z_ingate)
-                    meas_likelihood = obj.density.measLikelihood(state, z_ingate, measmodel);
+                    predict_likelihood = obj.density.predictedLikelihood(state, z_ingate, measmodel);
                     %Find the nearest neighbor in the gate
-                    [~, nearest_neighbor_assoc] = max(meas_likelihood);
+                    [~, nearest_neighbor_assoc] = max(predict_likelihood);
                     nearest_neighbor_meas = z_ingate(:,nearest_neighbor_assoc);
                     state = obj.density.update(state, nearest_neighbor_meas, measmodel);
                 end
@@ -82,19 +74,14 @@ classdef singletargetracker
         
         
         function estimates = probDataAssocTracker(obj, state, Z, sensormodel, motionmodel, measmodel)
-            %PROBDATAASSOCTRACKER tracks a single target
-            %using probalistic data association and kalman filter
-            %INPUT: Z: cell array of size (total tracking time, 1), each cell
-            %          stores measurements of size (measurement dimension) x
-            %          (number of measurements at corresponding time step)
-            %OUTPUT:estimates: a structure with two fields:
-            %               x: cell array of size (total tracking time, 1), each cell stores estimated target states
-            %                  of size (target state dimension) x (number of targets
-            %                  at corresponding time step)
-            %               P: cell array of size (total tracking time, 1), each cell stores estimated target states
-            %                  uncertainty covariance of size (target state dimension) x
-            %                  (target state dimension) x (number of targets
-            %                  at corresponding time step)
+            %PROBDATAASSOCTRACKER tracks a single object using probalistic data association
+            %INPUT: state: a structure with two fields:
+            %                x: object initial state mean --- (object state dimension) x 1 vector
+            %                P: object initial state covariance --- (object state dimension) x (object state dimension) matrix
+            %       Z: cell array of size (total tracking time, 1), each cell
+            %          stores measurements of size (measurement dimension) x (number of measurements at corresponding time step)
+            %OUTPUT:estimates: cell array of size (total tracking time, 1), each cell stores estimated object state of size (object state dimension) x 1
+            
             K = length(Z);
             estimates = cell(K,1);
             for k = 1:K
@@ -111,12 +98,12 @@ classdef singletargetracker
                     
                     %Missed detection hypothesis
                     hypothesized_state(1,1) = state;
-                    w_miss = hypothesisUpdate.undetected(sensormodel.P_D,obj.gating.P_G);
+                    w_miss = singleobjecthypothesis.undetected(sensormodel.P_D,obj.gating.P_G);
                     mu(1) = w_miss+log(sensormodel.lambda_c)+log(sensormodel.pdf_c);
                     
                     %Measurement update hypothesis
                     for i = 1:num_meas_ingate
-                        [hypothesized_state(i+1,1),mu(i+1)] = hypothesisUpdate.detected(obj.density,state,z_ingate(:,i),measmodel,sensormodel.P_D);
+                        [hypothesized_state(i+1,1),mu(i+1)] = singleobjecthypothesis.detected(obj.density,state,z_ingate(:,i),measmodel,sensormodel.P_D);
                     end
                     
                     %Normalise likelihoods
@@ -132,19 +119,13 @@ classdef singletargetracker
         end
         
         function estimates = multiHypothesesTracker(obj, state, Z, sensormodel, motionmodel, measmodel)
-            %MULTIHYPOTHESESTRACKER tracks a single target using multiple
-            %hypotheses
-            %INPUT: Z: cell array of size (total tracking time, 1), each cell
-            %          stores measurements of size (measurement dimension) x
-            %          (number of measurements at corresponding time step)
-            %OUTPUT:estimates: a structure with two fields:
-            %               x: cell array of size (total tracking time, 1), each cell stores estimated target states
-            %                  of size (target state dimension) x (number of targets
-            %                  at corresponding time step)
-            %               P: cell array of size (total tracking time, 1), each cell stores estimated target states
-            %                  uncertainty covariance of size (target state dimension) x
-            %                  (target state dimension) x (number of targets
-            %                  at corresponding time step)
+            %MULTIHYPOTHESESTRACKER tracks a single object using multiple hypotheses solution
+            %INPUT: state: a structure with two fields:
+            %                x: object initial state mean --- (object state dimension) x 1 vector
+            %                P: object initial state covariance --- (object state dimension) x (object state dimension) matrix
+            %       Z: cell array of size (total tracking time, 1), each cell
+            %          stores measurements of size (measurement dimension) x (number of measurements at corresponding time step)
+            %OUTPUT:estimates: cell array of size (total tracking time, 1), each cell stores estimated object state of size (object state dimension) x 1
             
             %Initialize hypothesesWeight and multiHypotheses struct
             hypothesesWeight(1,1) = 0;
@@ -165,7 +146,7 @@ classdef singletargetracker
                 %For each hypothesis, generate missed detection hypotheses
                 for i = 1:num_hypotheses
                     multiHypothesesUpdate(i,1) = multiHypotheses(i);
-                    w_miss = hypothesisUpdate.undetected(sensormodel.P_D, obj.gating.P_G);
+                    w_miss = singleobjecthypothesis.undetected(sensormodel.P_D, obj.gating.P_G);
                     hypothesesWeightUpdate(i,1) = hypothesesWeight(i)+w_miss+log(sensormodel.lambda_c)+log(sensormodel.pdf_c);
                 end
                 
@@ -178,7 +159,7 @@ classdef singletargetracker
                     if ~isempty(z_ingate)
                         for j = 1:size(z_ingate,2)
                             idx = idx + 1;
-                            [multiHypothesesUpdate(idx,1),wupd] = hypothesisUpdate.detected(obj.density,multiHypotheses(i), z_ingate(:,j), measmodel, sensormodel.P_D);
+                            [multiHypothesesUpdate(idx,1),wupd] = singleobjecthypothesis.detected(obj.density,multiHypotheses(i), z_ingate(:,j), measmodel, sensormodel.P_D);
                             hypothesesWeightUpdate(idx,1) = wupd+hypothesesWeight(i);
                         end
                     end

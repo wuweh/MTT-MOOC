@@ -6,17 +6,17 @@ clear; close all; clc
 
 dbstop if error
 
-%Choose target detection probability
+%Choose object detection probability
 P_D = 0.9;
 %Choose clutter rate
 lambda_c = 30;
 
 %Choose linear or nonlinear scenario
-scenario_type = 'Nonlinear Gaussian';
+scenario_type = 'Nonlinear';
 
 %% Create tracking scenario
 switch(scenario_type)
-    case 'Linear Gaussian'
+    case 'Linear'
         %Creat sensor model
         range_c = [-1000 1000;-1000 1000];
         sensor_model = modelgen.sensormodel(P_D,lambda_c,range_c);
@@ -36,7 +36,8 @@ switch(scenario_type)
         %Create linear measurement model
         sigma_r = 10;
         meas_model = measmodel.cvmeasmodel(sigma_r);
-    case 'Nonlinear Gaussian'
+        
+    case 'Nonlinear'
         %Create sensor model
         %Range/bearing measurement range
         range_c = [-1000 1000;-pi pi];
@@ -63,36 +64,36 @@ switch(scenario_type)
 end
 
 
-%% Generate true target data (noiseless) and measurement data
+%% Generate true object data (noisy or noiseless) and measurement data
 ifnoisy = 0;
-targetdata = targetdatagen(ground_truth,motion_model,ifnoisy);
-measdata = measdatagen(targetdata,sensor_model,meas_model);
+objectdata = objectdatagen(ground_truth,motion_model,ifnoisy);
+measdata = measdatagen(objectdata,sensor_model,meas_model);
 
-%% Single target tracker parameters
-P_G = 0.999;
-wmin = 1e-4;
-merging_threshold = 4;
-M = 100;
-density_class_handle = @GaussianDensity;
-tracker = singletargetracker();
+%% Single object tracker parameter setting
+P_G = 0.999;            %gating size in percentage
+wmin = 1e-4;            %hypothesis pruning threshold
+merging_threshold = 4;  %hypothesis merging threshold
+M = 100;                %maximum number of hypotheses kept in MHT
+density_class_handle = @GaussianDensity;    %density class handle
+tracker = singleobjectracker();
 tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_threshold,M);
 
 %% NN tracker
 nearestNeighborEstimates = nearestNeighborTracker(tracker, initial_state, measdata, motion_model, meas_model);
-nearestNeighborRMSE = RMSE(nearestNeighborEstimates,targetdata.X);
+nearestNeighborRMSE = RMSE(nearestNeighborEstimates,objectdata.X);
 
 %% PDA tracker
 probDataAssocEstimates = probDataAssocTracker(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
-probDataAssocRMSE = RMSE(probDataAssocEstimates,targetdata.X);
+probDataAssocRMSE = RMSE(probDataAssocEstimates,objectdata.X);
 
 %% Multi-hypothesis tracker
 multiHypothesesEstimates = multiHypothesesTracker(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
-multiHypothesesRMSE = RMSE(multiHypothesesEstimates,targetdata.X);
+multiHypothesesRMSE = RMSE(multiHypothesesEstimates,objectdata.X);
 
 %% Ploting
 figure
 hold on
-true_state = cell2mat(targetdata.X');
+true_state = cell2mat(objectdata.X');
 NN_estimated_state = cell2mat(nearestNeighborEstimates');
 PDA_estimated_state = cell2mat(probDataAssocEstimates');
 MH_estimated_state = cell2mat(multiHypothesesEstimates');

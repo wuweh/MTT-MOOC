@@ -6,14 +6,11 @@ classdef motionmodel
             %CVMODEL creates a 2D nearly constant velocity model
             %INPUT:     T: sampling time --- scalar
             %           sigma: standard deviation of motion noise --- scalar
-            %OUTPUT:    obj.d: target state dimension --- scalar
-            %           obj.F: function handle return a motion transition 
-            %                   matrix --- 2 x 2 matrix
+            %OUTPUT:    obj.d: object state dimension --- scalar
+            %           obj.F: function handle return a motion transition matrix --- 2 x 2 matrix
             %           obj.Q: motion noise covariance --- 4 x 4 matrix
-            %           obj.f: function handle return state prediction ---
-            %           4 x 1 vector
-            % NOTE: the motion model assumes that the state vector x consist of the
-            % following states:
+            %           obj.f: function handle return state prediction --- 4 x 1 vector
+            % NOTE: the motion model assumes that the state vector x consist of the following states:
             %           px          X-position
             %           py          Y-position
             %           vx          X-velocity
@@ -34,21 +31,15 @@ classdef motionmodel
         end
         
         function obj = ctmodel(T,sigmaV,sigmaOmega)
-            %CTMODEL creates a 2D coordinate turn model with nearly constant
-            %polar velocity and turn rate
+            %CTMODEL creates a 2D coordinate turn model with nearly constant polar velocity and turn rate
             %INPUT:     T: sampling time --- scalar
-            %           sigmaV: standard deviation of motion noise added to
-            %           polar velocity --- scalar
-            %           sigmaOmega: standard deviation of motion noise added to
-            %           turn rate --- scalar
-            %OUTPUT:    obj.d: target state dimension --- scalar
-            %           obj.F: function handle return a motion Jacobian ...
-            %                   matrix --- 5 x 5 matrix
-            %           obj.f: function handle return state prediction ---
-            %           5 x 1 vector
+            %           sigmaV: standard deviation of motion noise added to polar velocity --- scalar
+            %           sigmaOmega: standard deviation of motion noise added to turn rate --- scalar
+            %OUTPUT:    obj.d: object state dimension --- scalar
+            %           obj.F: function handle return a motion Jacobian matrix --- 5 x 5 matrix
+            %           obj.f: function handle return state prediction --- 5 x 1 vector
             %           obj.Q: motion noise covariance --- 5 x 5 matrix
-            % NOTE: the motion model assumes that the state vector x consist of the
-            % following states:
+            % NOTE: the motion model assumes that the state vector x consist of the following states:
             %           px          X-position
             %           py          Y-position
             %           v           velocity
@@ -74,5 +65,3 @@ classdef motionmodel
 
     end
 end
-
-
