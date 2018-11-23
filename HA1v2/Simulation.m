@@ -7,9 +7,9 @@ clear; close all; clc
 dbstop if error
 
 %Choose object detection probability
-P_D = 0.9;
+P_D = 0.3;
 %Choose clutter rate
-lambda_c = 30;
+lambda_c = 60;
 
 %Choose linear or nonlinear scenario
 scenario_type = 'Nonlinear';

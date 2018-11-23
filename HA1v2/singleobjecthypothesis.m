@@ -10,7 +10,7 @@ classdef singleobjecthypothesis
             w_miss = log(1-P_D*P_G);
         end
         
-        function [state,w_upd] = detected(density,state,z,measmodel,P_D)
+        function [state_upd,w_upd] = detected(density,state,z,measmodel,P_D)
             %DETECTED creates a measurement update hypothesis
             %INPUT: density: a class handle
             %       state: a structure with two fields:
@@ -24,10 +24,14 @@ classdef singleobjecthypothesis
             %                P: updated state covariance --- (state dimension) x (state dimension) matrix
             %       w_upd: measurement update likelihood in logarithm --- scalar
             
-            % Updated state density, compute predicted likelihood
-            state = density.update(state,z,measmodel);
             % Updated log likelihood
             predict_likelihood = density.predictedLikelihood(state, z, measmodel);
+            
+            % Updated state density, compute predicted likelihood
+            for i = 1:size(z,2)
+                state_upd(i,1) = density.update(state,z(:,i),measmodel);
+            end
+            
             w_upd = predict_likelihood + log(P_D);
         end
         

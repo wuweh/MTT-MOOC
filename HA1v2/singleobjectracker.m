@@ -102,9 +102,7 @@ classdef singleobjectracker
                     mu(1) = w_miss+log(sensormodel.lambda_c)+log(sensormodel.pdf_c);
                     
                     %Measurement update hypothesis
-                    for i = 1:num_meas_ingate
-                        [hypothesized_state(i+1,1),mu(i+1)] = singleobjecthypothesis.detected(obj.density,state,z_ingate(:,i),measmodel,sensormodel.P_D);
-                    end
+                    [hypothesized_state(2:num_meas_ingate+1,1),mu(2:num_meas_ingate+1)] = singleobjecthypothesis.detected(obj.density,state,z_ingate,measmodel,sensormodel.P_D);
                     
                     %Normalise likelihoods
                     [mu,~] = normalizeLogWeights(mu);
@@ -157,11 +155,10 @@ classdef singleobjectracker
                     %measurements in the gate
                     z_ingate = obj.density.ellipsoidalGating(multiHypotheses(i), Z{k}, measmodel, obj.gating.size);
                     if ~isempty(z_ingate)
-                        for j = 1:size(z_ingate,2)
-                            idx = idx + 1;
-                            [multiHypothesesUpdate(idx,1),wupd] = singleobjecthypothesis.detected(obj.density,multiHypotheses(i), z_ingate(:,j), measmodel, sensormodel.P_D);
-                            hypothesesWeightUpdate(idx,1) = wupd+hypothesesWeight(i);
-                        end
+                        num_meas_ingate = size(z_ingate,2);
+                        [multiHypothesesUpdate(idx+1:idx+num_meas_ingate,1),wupd] = singleobjecthypothesis.detected(obj.density,multiHypotheses(i),z_ingate,measmodel,sensormodel.P_D);
+                        hypothesesWeightUpdate(idx+1:idx+num_meas_ingate,1) = wupd+hypothesesWeight(i);
+                        idx = idx + num_meas_ingate;
                     end
                 end
 
