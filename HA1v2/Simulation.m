@@ -7,7 +7,7 @@ clear; close all; clc
 dbstop if error
 
 %Choose object detection probability
-P_D = 0.3;
+P_D = 0.9;
 %Choose clutter rate
 lambda_c = 60;
 
@@ -79,7 +79,7 @@ tracker = singleobjectracker();
 tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_threshold,M);
 
 %% NN tracker
-nearestNeighborEstimates = nearestNeighborTracker(tracker, initial_state, measdata, motion_model, meas_model);
+nearestNeighborEstimates = nearestNeighborTracker(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
 nearestNeighborRMSE = RMSE(nearestNeighborEstimates,objectdata.X);
 
 %% PDA tracker

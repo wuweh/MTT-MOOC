@@ -27,15 +27,15 @@ classdef singleobjectracker
         function obj = initialize(obj,density_class_handle,P_G,m_d,wmin,merging_threshold,M)
             %INITIATOR initializes singleobjectracker class
             %INPUT: density_class_handle: density class handle
-            %       P_G: gating size in percentage --- scalar
+            %       P_G: gating size in decimal --- scalar
             %       m_d: measurement dimension --- scalar
             %       wmin: allowed minimum hypothesis weight --- scalar
             %       merging_threshold: merging threshold --- scalar
             %       M: allowed maximum number of hypotheses --- scalar
             %OUTPUT:  obj.density: density class handle
-            %         obj.gating.P_G: gating size in percentage --- scalar
+            %         obj.gating.P_G: gating size in decimal --- scalar
             %         obj.gating.size: gating size --- scalar
-            %         obj.hypothesis_reduction.wmin: allowed minimum hypothesis weight in logarithm domain --- scalar
+            %         obj.hypothesis_reduction.wmin: allowed minimum hypothesis weight in logarithmic scale --- scalar
             %         obj.hypothesis_reduction.merging_threshold: merging threshold --- scalar
             %         obj.hypothesis_reduction.M: allowed maximum number of hypotheses --- scalar
             obj.density = feval(density_class_handle);
@@ -46,7 +46,7 @@ classdef singleobjectracker
             obj.hypothesis_reduction.M = M;
         end
         
-        function estimates = nearestNeighborTracker(obj, state, Z, motionmodel, measmodel)
+        function estimates = nearestNeighborTracker(obj, state, Z, sensormodel, motionmodel, measmodel)
             %NEARESTNEIGHBORTRACKER tracks a single object using nearest neighbor association
             %INPUT: state: a structure with two fields:
             %                x: object initial state mean --- (object state dimension) x 1 vector
@@ -64,9 +64,13 @@ classdef singleobjectracker
                 if ~isempty(z_ingate)
                     predict_likelihood = obj.density.predictedLikelihood(state, z_ingate, measmodel);
                     %Find the nearest neighbor in the gate
-                    [~, nearest_neighbor_assoc] = max(predict_likelihood);
-                    nearest_neighbor_meas = z_ingate(:,nearest_neighbor_assoc);
-                    state = obj.density.update(state, nearest_neighbor_meas, measmodel);
+                    [max_predict_likelihood, nearest_neighbor_assoc] = max(predict_likelihood);
+                    w_miss = singleobjecthypothesis.undetected(sensormodel.P_D,obj.gating.P_G);
+                    missed_likelihood = w_miss+log(sensormodel.lambda_c)+log(sensormodel.pdf_c);
+                    if max_predict_likelihood > missed_likelihood
+                        nearest_neighbor_meas = z_ingate(:,nearest_neighbor_assoc);
+                        state = obj.density.update(state, nearest_neighbor_meas, measmodel);
+                    end
                 end
                 estimates{k} = obj.density.expectedValue(state);
             end
@@ -181,12 +185,11 @@ classdef singleobjectracker
                 [hypothesesWeight,multiHypotheses] = hypothesisReduction.merge...
                     (hypothesesWeight,multiHypotheses,obj.hypothesis_reduction.merging_threshold,obj.density);
                 
-                %Extract target state from the hypothesis with the highest weight
+                %Extract object state from the hypothesis with the highest weight
                 [~,idx] = max(hypothesesWeight);
                 estimates{k} = obj.density.expectedValue(multiHypotheses(idx));
             end
         end
-        
         
     end
 end

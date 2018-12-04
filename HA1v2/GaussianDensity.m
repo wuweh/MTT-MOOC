@@ -84,19 +84,22 @@ classdef GaussianDensity
             %        measmodel: a structure specifies the measurement model parameters
             %        gating_size: gating size --- scalar
             %OUTPUT: z_ingate: measurements in the gate --- (measurement dimension) x (number of measurements in the gate) matrix
-            
-            zlength = size(z,2);
-            in_gate = false(zlength,1);
-            
-            S = measmodel.H(density_pred.x)*density_pred.P*measmodel.H(density_pred.x)' + measmodel.R;
-            %Make sure matrix S is positive definite
-            S = (S+S')/2;
-            
-            nu = z - repmat(measmodel.h(density_pred.x),[1 zlength]);
-            dist = diag(nu.'*(S\nu));
-            
-            in_gate(dist<gating_size) = true;
-            z_ingate = z(:,in_gate);
+            if isempty(z)
+                z_ingate = zeros(measmodel.d,0);
+            else
+                zlength = size(z,2);
+                in_gate = false(zlength,1);
+                
+                S = measmodel.H(density_pred.x)*density_pred.P*measmodel.H(density_pred.x)' + measmodel.R;
+                %Make sure matrix S is positive definite
+                S = (S+S')/2;
+                
+                nu = z - repmat(measmodel.h(density_pred.x),[1 zlength]);
+                dist = diag(nu.'*(S\nu));
+                
+                in_gate(dist<gating_size) = true;
+                z_ingate = z(:,in_gate);
+            end
         end
         
         function density = momentMatching(w, mixture_density)
