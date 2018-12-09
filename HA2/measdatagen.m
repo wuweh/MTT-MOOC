@@ -17,7 +17,11 @@ for k = 1:length(objectdata.X)
         if isempty(objectdata.X{k}(:,idx))
             measdata{k} = [];
         else
-            measdata{k} = mvnrnd(measmodel.h(objectdata.X{k}(:,idx))', measmodel.R)';
+            objectstates = objectdata.X{k}(:,idx);
+            for i = 1:size(objectstates,2)
+                meas = mvnrnd(measmodel.h(objectstates(:,i))', measmodel.R)';
+                measdata{k} = [measdata{k} meas];
+            end
         end
     end
     %Number of clutter measurements

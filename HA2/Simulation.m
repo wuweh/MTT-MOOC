@@ -9,24 +9,17 @@ dbstop if error
 %Choose object detection probability
 P_D = 0.9;
 %Choose clutter rate
-lambda_c = 60;
+lambda_c = 10;
 
 %Choose linear or nonlinear scenario
-scenario_type = 'Linear';
+scenario_type = 'linear';
 
 %% Create tracking scenario
 switch(scenario_type)
-    case 'Linear'
+    case 'linear'
         %Creat sensor model
         range_c = [-1000 1000;-1000 1000];
         sensor_model = modelgen.sensormodel(P_D,lambda_c,range_c);
-        
-        %Creat ground truth model
-        nbirths = 1;
-        K = 100;
-        initial_state.x = [0; 0; 10; 10];
-        initial_state.P = eye(4);
-        ground_truth = modelgen.groundtruth(nbirths,initial_state.x,1,K+1,K);
         
         %Creat linear motion model
         T = 1;
@@ -37,18 +30,27 @@ switch(scenario_type)
         sigma_r = 10;
         meas_model = measmodel.cvmeasmodel(sigma_r);
         
-    case 'Nonlinear'
+        %Creat ground truth model
+        nbirths = 5;
+        K = 100;
+        tbirth = zeros(nbirths,1);
+        tdeath = zeros(nbirths,1);
+        
+        initial_state = repmat(struct('x',[],'P',eye(motion_model.d)),[1,nbirths]);
+        
+        initial_state(1).x = [0; 0; 0; -10];        tbirth(1) = 1;   tdeath(1) = K;
+        initial_state(2).x = [400; -600; -10; 5];   tbirth(2) = 1;   tdeath(2) = K;
+        initial_state(3).x = [-800; -200; 20; -5];  tbirth(3) = 1;   tdeath(3) = K;
+        initial_state(4).x = [0; 0; 7.5; -5];       tbirth(4) = 1;   tdeath(4) = K;
+        initial_state(5).x = [-200; 800; -3; -15];  tbirth(5) = 1;   tdeath(5) = K;
+        
+        ground_truth = modelgen.groundtruth(nbirths,[initial_state.x],tbirth,tdeath,K);
+         
+    case 'nonlinear'
         %Create sensor model
         %Range/bearing measurement range
         range_c = [-1000 1000;-pi pi];
         sensor_model = modelgen.sensormodel(P_D,lambda_c,range_c);
-        
-        %Creat ground truth model
-        nbirths = 1;
-        K = 100;
-        initial_state.x = [0; 0; 10; 0; pi/180];
-        initial_state.P = diag([1 1 1 1*pi/180 1*pi/180].^2);
-        ground_truth = modelgen.groundtruth(nbirths,initial_state.x,1,K+1,K);
         
         %Create nonlinear motion model (coordinate turn)
         T = 1;
@@ -60,7 +62,21 @@ switch(scenario_type)
         sigma_r = 5;
         sigma_b = pi/180;
         s = [300;400];
-        meas_model = measmodel.rangebearingmeasmodel(sigma_r, sigma_b, s);    
+        meas_model = measmodel.rangebearingmeasmodel(sigma_r, sigma_b, s);
+        
+        %Creat ground truth model
+        nbirths = 4;
+        K = 100;
+        
+        initial_state = repmat(struct('x',[],'P',diag([1 1 1 1*pi/90 1*pi/90].^2)),[1,nbirths]);
+        
+        initial_state(1).x = [0; 0; 5; 0; pi/180];       tbirth(1) = 1;   tdeath(1) = K;
+        initial_state(2).x = [20; 20; -20; 0; pi/90];      tbirth(2) = 1;   tdeath(2) = K;
+        initial_state(3).x = [-20; 10; -10; 0; pi/360];    tbirth(3) = 1;   tdeath(3) = K;
+        initial_state(4).x = [-10; -10; 8; 0; pi/270];    tbirth(4) = 1;   tdeath(4) = K;
+        
+        ground_truth = modelgen.groundtruth(nbirths,[initial_state.x],tbirth,tdeath,K);
+        
 end
 
 
@@ -75,33 +91,25 @@ wmin = 1e-4;            %hypothesis pruning threshold
 merging_threshold = 4;  %hypothesis merging threshold
 M = 100;                %maximum number of hypotheses kept in MHT
 density_class_handle = @GaussianDensity;    %density class handle
-tracker = singleobjectracker();
+tracker = n_objectracker();
 tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_threshold,M);
 
 %% NN tracker
-nearestNeighborEstimates = nearestNeighborTracker(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
-nearestNeighborRMSE = RMSE(nearestNeighborEstimates,objectdata.X);
-
-%% PDA tracker
-probDataAssocEstimates = probDataAssocTracker(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
-probDataAssocRMSE = RMSE(probDataAssocEstimates,objectdata.X);
+GNNestimates = GNNtracker(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
 
 %% Multi-hypothesis tracker
-multiHypothesesEstimates = multiHypothesesTracker(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
-multiHypothesesRMSE = RMSE(multiHypothesesEstimates,objectdata.X);
+% TOMHTestimates = TOMHT(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
 
 %% Ploting
 figure
 hold on
+
 true_state = cell2mat(objectdata.X');
-NN_estimated_state = cell2mat(nearestNeighborEstimates');
-PDA_estimated_state = cell2mat(probDataAssocEstimates');
-MH_estimated_state = cell2mat(multiHypothesesEstimates');
-plot(true_state(1,:), true_state(2,:), '-o','Linewidth', 2)
-plot(NN_estimated_state(1,:), NN_estimated_state(2,:), 'Linewidth', 2)
-plot(PDA_estimated_state(1,:), PDA_estimated_state(2,:), 'Linewidth', 2)
-plot(MH_estimated_state(1,:), MH_estimated_state(2,:), 'Linewidth', 2)
-legend('Ground Truth','Nearest Neighbor', 'Probalistic Data Association', 'Multi-hypotheses Data Association', 'Location', 'best')
+GNN_estimated_state = cell2mat(GNNestimates');
+plot(true_state(1,:), true_state(2,:), 'bo','Linewidth', 2)
+plot(GNN_estimated_state(1,:), GNN_estimated_state(2,:),'r+','Linewidth', 2)
+
+% legend('Ground Truth','Nearest Neighbor', 'Multi-hypotheses Data Association', 'Location', 'best')
 
 %% True target data generation
 % In this part, you are going to create the groundtruth data. For this
