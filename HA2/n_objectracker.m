@@ -162,7 +162,10 @@ classdef n_objectracker
                     end
                     L = [L1 L2];
                     %Obtain M best assignments using Murty's algorithm
-                    [col4rowBest,~,gainBest]=kBest2DAssign(L,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
+%                     [col4rowBest,~,gainBest]=kBest2DAssign(L,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
+                    %Obtain M low cost assignments using Gibbs sampling
+                    [col4rowBest,gainBest]= assign2DByGibbs(L,100,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
+                    
                     col4rowBest(col4rowBest>m) = 0;
                     globalHypoWeightUpd = [globalHypoWeightUpd;-gainBest+globalHypoWeight(h)];
                     %Update look-up table
