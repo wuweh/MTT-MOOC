@@ -48,6 +48,13 @@ classdef n_objectracker
         
         function estimates = GNNtracker(obj, states, Z, sensormodel, motionmodel, measmodel)
             %GNNTRACKER tracks n object using global nearest neighbor association
+            %INPUT: state: structure array of size (1, number of objects) with two fields:
+            %                x: object initial state mean --- (object state dimension) x 1 vector
+            %                P: object initial state covariance --- (object state dimension) x (object state dimension) matrix
+            %       Z: cell array of size (total tracking time, 1), each cell
+            %          stores measurements of size (measurement dimension) x (number of measurements at corresponding time step)
+            %OUTPUT:estimates: cell array of size (total tracking time, 1), each cell stores estimated object state of size (object state dimension) x (number of objects)
+            
             
             n = length(states);
             K = length(Z);
@@ -84,6 +91,12 @@ classdef n_objectracker
         
         function estimates = TOMHT(obj, states, Z, sensormodel, motionmodel, measmodel)
             %TOMHT tracks n object using track-oriented multi-hypothesis tracking
+            %INPUT: state: structure array of size (1, number of objects) with two fields:
+            %                x: object initial state mean --- (object state dimension) x 1 vector
+            %                P: object initial state covariance --- (object state dimension) x (object state dimension) matrix
+            %       Z: cell array of size (total tracking time, 1), each cell
+            %          stores measurements of size (measurement dimension) x (number of measurements at corresponding time step)
+            %OUTPUT:estimates: cell array of size (total tracking time, 1), each cell stores estimated object state of size (object state dimension) x (number of objects)
             
             n = length(states);     %number of objects
             K = length(Z);          %total number of time steps
