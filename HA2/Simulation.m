@@ -69,9 +69,9 @@ switch(scenario_type)
         initial_state = repmat(struct('x',[],'P',diag([1 1 1 1*pi/90 1*pi/90].^2)),[1,nbirths]);
         
         initial_state(1).x = [0; 0; 5; 0; pi/180];       tbirth(1) = 1;   tdeath(1) = K;
-        initial_state(2).x = [20; 20; -20; 0; pi/90];      tbirth(2) = 1;   tdeath(2) = K;
-        initial_state(3).x = [-20; 10; -10; 0; pi/360];    tbirth(3) = 1;   tdeath(3) = K;
-        initial_state(4).x = [-10; -10; 8; 0; pi/270];    tbirth(4) = 1;   tdeath(4) = K;
+        initial_state(2).x = [20; 20; -20; 0; pi/90];    tbirth(2) = 1;   tdeath(2) = K;
+        initial_state(3).x = [-20; 10; -10; 0; pi/360];  tbirth(3) = 1;   tdeath(3) = K;
+        initial_state(4).x = [-10; -10; 8; 0; pi/270];   tbirth(4) = 1;   tdeath(4) = K;
 
 end
 
@@ -103,6 +103,10 @@ hold on
 true_state = cell2mat(objectdata.X');
 GNN_estimated_state = cell2mat(GNNestimates');
 TOMHT_estimated_state = cell2mat(TOMHTestimates');
+
+GNN_RMSE = RMSE_n_objects(objectdata.X,GNNestimates)
+TOMHT_RMSE = RMSE_n_objects(objectdata.X,TOMHTestimates)
+
 h1 = plot(true_state(1,:), true_state(2,:), 'bo');
 h2 = plot(GNN_estimated_state(1,:), GNN_estimated_state(2,:),'r+');
 h3 = plot(TOMHT_estimated_state(1,:), TOMHT_estimated_state(2,:),'g*');
