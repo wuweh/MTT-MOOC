@@ -54,8 +54,8 @@ classdef n_objectracker
             estimates = cell(K,1);
             
             for k = 1:K
-                meas_in_gate_per_object = zeros(size(Z{k},2),n);
                 states = arrayfun(@(x) obj.density.predict(x, motionmodel), states);
+                meas_in_gate_per_object = zeros(size(Z{k},2),n);
                 for i = 1:n
                     [~,meas_in_gate_per_object(:,i)] = obj.density.ellipsoidalGating(states(i), Z{k}, measmodel, obj.gating.size);
                 end
@@ -85,37 +85,111 @@ classdef n_objectracker
         function estimates = TOMHT(obj, states, Z, sensormodel, motionmodel, measmodel)
             %TOMHT tracks n object using track-oriented multi-hypothesis tracking
             
-            n = length(states);
-            K = length(Z);
-            estimates = cell(K,1);
+            n = length(states);     %number of objects
+            K = length(Z);          %total number of time steps
+            estimates = cell(K,1);  %initialize estimates
+            hypoTable = cell(n,1);  %initialize single object hypothesis table
+            %each cell stores the single object hypotheses for the corresponding object
+            for i = 1:n
+                hypoTable{i} = states(i);
+            end
+            %initialize global hypotheses
+            globalHypoWeight(1,1) = 0;
+            globalHypo = ones(1,n);
             
             for k = 1:K
-                meas_in_gate_per_object = zeros(size(Z{k},2),n);
-                states = arrayfun(@(x) obj.density.predict(x, motionmodel), states);
+                m = size(Z{k},2);   %number of measurements at time step k
+                %predict for each single object hypothesis for each object
                 for i = 1:n
-                    [~,meas_in_gate_per_object(:,i)] = obj.density.ellipsoidalGating(states(i), Z{k}, measmodel, obj.gating.size);
+                    hypoTable{i} = arrayfun(@(x) obj.density.predict(x, motionmodel), hypoTable{i});
                 end
                 
-                used_meas_idx = sum(meas_in_gate_per_object,2) >= 1;
-                meas_in_gate_per_object = logical(meas_in_gate_per_object(used_meas_idx,:));
-                z_ingate = Z{k}(:,used_meas_idx);
-                m = size(z_ingate,2);
-                
-                L1 = inf(n,m);
+                %initialize likelihood table and updated single object hypothesis table
+                likTable = cell(n,1);
+                hypoTableUpd = cell(n,1);
                 for i = 1:n
-                    L1(i,meas_in_gate_per_object(:,i)) = -obj.density.predictedLikelihood(states(i), z_ingate(:,meas_in_gate_per_object(:,i)), measmodel)';
-                end
-                L2 = inf(n);
-                L2(logical(eye(n))) = -singleobjecthypothesis.undetected(sensormodel.P_D,obj.gating.P_G)*ones(n,1);
-                L = [L1 L2];
-                col4row = assign2D(L);
-                
-                for i = 1:n
-                    if col4row(i) <= m
-                        states(i) = obj.density.update(states(i), z_ingate(:,col4row(i)), measmodel);
+                    %number of single object hypotheses for object i
+                    num_hypo_per_object = length(hypoTable{i});
+                    %initialize gating table, recording whether measurement
+                    %m is inside the gate of single object hypothesis h
+                    meas_in_gate_per_object = zeros(m,num_hypo_per_object);
+                    likTable{i} = inf(num_hypo_per_object,m+1);
+                    
+                    hypoTableUpd{i} = cell(num_hypo_per_object*(m+1),1);
+                    for j = 1:num_hypo_per_object
+                        %ellipsoidal gating
+                        [~,meas_in_gate_per_object(:,j)] = obj.density.ellipsoidalGating(hypoTable{i}(j), Z{k}, measmodel, obj.gating.size);
+                        %missed detection likelihood
+                        likTable{i}(j,1) = -(singleobjecthypothesis.undetected...
+                            (sensormodel.P_D,obj.gating.P_G)+log(sensormodel.lambda_c)+log(sensormodel.pdf_c));
+                        %predicted likelihood
+                        likTable{i}(j,[false;logical(meas_in_gate_per_object(:,j))]) ...
+                            = -obj.density.predictedLikelihood(hypoTable{i}(j), Z{k}(:,logical(meas_in_gate_per_object(:,j))), measmodel)';
+                        %update step, only consider measurements inside the gate
+                        hypoTableUpd{i}{(j-1)*(m+1)+1} = hypoTable{i}(j);
+                        for jj = 1:m
+                            if meas_in_gate_per_object(jj,j) == 1
+                                hypoTableUpd{i}{(j-1)*(m+1)+jj+1} = obj.density.update(hypoTable{i}(j), Z{k}(:,jj), measmodel);
+                            end
+                        end
                     end
-                    estimates{k} = [estimates{k} obj.density.expectedValue(states(i))];
                 end
+                
+                globalHypoWeightUpd = [];
+                globalHypoUpd = zeros(0,n);
+                num_new_hypo = 0;
+                H = size(globalHypo,1);
+                for h = 1:H
+                    %Create assignment matrix
+                    L1 = inf(n,m);
+                    L2 = inf(n);
+                    for i = 1:n
+                        L1(i,:) = likTable{i}(globalHypo(h,i),2:end);
+                        L2(i,i) = likTable{i}(globalHypo(h,i),1);
+                    end
+                    L = [L1 L2];
+                    %Obtain M best assignments using Murty's algorithm
+                    [col4rowBest,~,gainBest]=kBest2DAssign(L,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
+                    col4rowBest(col4rowBest>m) = 0;
+                    globalHypoWeightUpd = [globalHypoWeightUpd;-gainBest+globalHypoWeight(h)];
+                    %Update look-up table
+                    for j = 1:length(gainBest)
+                        num_new_hypo = num_new_hypo + 1;
+                        for i = 1:n
+                            globalHypoUpd(num_new_hypo,i) = (globalHypo(h,i)-1)*(m+1) + col4rowBest(i,j) + 1;
+                        end
+                    end
+                end
+                
+                %Normalize global hypothesis weights
+                globalHypoWeight = normalizeLogWeights(globalHypoWeightUpd);
+                hypo_idx = 1:num_new_hypo;
+                %Prune hypotheses with weight smaller than the specified threshold
+                [globalHypoWeight, hypo_idx] = hypothesisReduction.prune(globalHypoWeight,...
+                    hypo_idx, obj.hypothesis_reduction.wmin);
+                %Keep at most M hypotheses with the highest weights
+                [globalHypoWeight, hypo_idx] = hypothesisReduction.cap(globalHypoWeight, ...
+                    hypo_idx, obj.hypothesis_reduction.M);
+                globalHypo = globalHypoUpd(hypo_idx,:);
+                
+                %Prune local hypotheses
+                for i = 1:n
+                    hypoTableTemp = hypoTableUpd{i}(unique(globalHypo(:,i)));
+                    hypoTable{i} = [hypoTableTemp{:}];
+                end
+                
+                %Clean track table
+                for i = 1:n
+                    [~,~,globalHypo(:,i)] = unique(globalHypo(:,i),'rows');
+                end
+                
+                %Extract object states
+                [~,I] = max(globalHypoWeight);
+                bestHypo = globalHypo(I,:);
+                for i = 1:n
+                    estimates{k} = [estimates{k} obj.density.expectedValue(hypoTable{i}(bestHypo(i)))];
+                end
+                
             end
         end
         

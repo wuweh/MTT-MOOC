@@ -16,8 +16,8 @@ if length(log_w)<=1
     log_w = log_w-log_sum_w;
 elseif length(log_w)>1
     % Log of sum of weights times prior probabilities
-    log_w_aux = sort(log_w,'descend');
-    log_sum_w = log_w_aux(1)+log(1+sum(exp(log_w_aux(2:end)-log_w_aux(1))));
+    [log_w_aux,I] = sort(log_w,'descend');
+    log_sum_w = max(log_w_aux)+log(1+sum(exp(log_w(I(2:end))-max(log_w_aux))));
     % Normalize
     log_w = log_w-log_sum_w;
 end
