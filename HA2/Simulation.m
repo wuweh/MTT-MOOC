@@ -7,9 +7,9 @@ clear; close all; clc
 dbstop if error
 
 %Choose object detection probability
-P_D = 0.7;
+P_D = 0.98;
 %Choose clutter rate
-lambda_c = 60;
+lambda_c = 10;
 
 %Choose linear or nonlinear scenario
 scenario_type = 'nonlinear';
@@ -93,6 +93,9 @@ tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_
 %% NN tracker
 GNNestimates = GNNtracker(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
 
+%% JPDA tracker
+JPDAestimates = JPDAtracker(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
+
 %% Multi-hypothesis tracker
 TOMHTestimates = TOMHT(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
 
@@ -102,13 +105,16 @@ hold on
 
 true_state = cell2mat(objectdata.X');
 GNN_estimated_state = cell2mat(GNNestimates');
+JPDA_estimated_state = cell2mat(JPDAestimates');
 TOMHT_estimated_state = cell2mat(TOMHTestimates');
 
 GNN_RMSE = RMSE_n_objects(objectdata.X,GNNestimates)
+JPDA_RMSE = RMSE_n_objects(objectdata.X,JPDAestimates)
 TOMHT_RMSE = RMSE_n_objects(objectdata.X,TOMHTestimates)
 
 h1 = plot(true_state(1,:), true_state(2,:), 'bo');
 h2 = plot(GNN_estimated_state(1,:), GNN_estimated_state(2,:),'r+');
-h3 = plot(TOMHT_estimated_state(1,:), TOMHT_estimated_state(2,:),'g*');
+h3 = plot(JPDA_estimated_state(1,:), JPDA_estimated_state(2,:),'mx');
+h4 = plot(TOMHT_estimated_state(1,:), TOMHT_estimated_state(2,:),'g*');
 
-legend([h1 h2 h3],'Ground Truth','GNN','TOMHT', 'Location', 'best')
+legend([h1 h2 h3 h4],'Ground Truth','GNN','JPDA','TOMHT', 'Location', 'best')

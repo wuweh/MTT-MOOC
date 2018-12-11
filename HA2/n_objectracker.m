@@ -89,6 +89,70 @@ classdef n_objectracker
             end
         end
         
+        function estimates = JPDAtracker(obj, states, Z, sensormodel, motionmodel, measmodel)
+            %JPDATRACKER tracks n object using global nearest neighbor association
+            %INPUT: state: structure array of size (1, number of objects) with two fields:
+            %                x: object initial state mean --- (object state dimension) x 1 vector
+            %                P: object initial state covariance --- (object state dimension) x (object state dimension) matrix
+            %       Z: cell array of size (total tracking time, 1), each cell
+            %          stores measurements of size (measurement dimension) x (number of measurements at corresponding time step)
+            %OUTPUT:estimates: cell array of size (total tracking time, 1), each cell stores estimated object state of size (object state dimension) x (number of objects)
+            
+            
+            n = length(states);
+            K = length(Z);
+            estimates = cell(K,1);
+            
+            for k = 1:K
+                states = arrayfun(@(x) obj.density.predict(x, motionmodel), states);
+                meas_in_gate_per_object = zeros(size(Z{k},2),n);
+                for i = 1:n
+                    [~,meas_in_gate_per_object(:,i)] = obj.density.ellipsoidalGating(states(i), Z{k}, measmodel, obj.gating.size);
+                end
+                
+                used_meas_idx = sum(meas_in_gate_per_object,2) >= 1;
+                meas_in_gate_per_object = logical(meas_in_gate_per_object(used_meas_idx,:));
+                z_ingate = Z{k}(:,used_meas_idx);
+                m = size(z_ingate,2);
+                
+                L1 = inf(n,m);
+                for i = 1:n
+                    L1(i,meas_in_gate_per_object(:,i)) = -obj.density.predictedLikelihood(states(i), z_ingate(:,meas_in_gate_per_object(:,i)), measmodel)';
+                end
+                L2 = inf(n);
+                L2(logical(eye(n))) = -(singleobjecthypothesis.undetected(sensormodel.P_D,obj.gating.P_G)+log(sensormodel.lambda_c)+log(sensormodel.pdf_c))*ones(n,1);
+                L = [L1 L2];
+                %Obtain M best assignments using Murty's algorithm
+                [col4rowBest,~,gainBest]=kBest2DAssign(L,obj.hypothesis_reduction.M);
+                %Obtain M low cost assignments using Gibbs sampling
+%                 [col4rowBest,gainBest]= assign2DByGibbs(L,1000,obj.hypothesis_reduction.M);
+                
+                %Normalize hypothesis weight
+                normalizedWeight = normalizeLogWeights(-gainBest);
+                
+                hypo_idx = 1:length(normalizedWeight);
+                %Prune hypotheses with weight smaller than the specified threshold
+                [normalizedWeight, hypo_idx] = hypothesisReduction.prune(normalizedWeight,...
+                    hypo_idx, obj.hypothesis_reduction.wmin);
+                col4rowBest = col4rowBest(:,hypo_idx);
+                
+                numHypothesis = length(normalizedWeight);
+                for i = 1:n
+                    hypostates = repmat(states(i),[1,numHypothesis]);
+                    for j = 1:numHypothesis
+                        if col4rowBest(i,j) <= m
+                            %Create object detection hypothesis
+                            hypostates(j) = obj.density.update(states(i), z_ingate(:,col4rowBest(i,j)), measmodel);
+                        end
+                    end
+                    %Merging
+                    states(i) = obj.density.momentMatching(normalizedWeight, hypostates);
+                    %Extract object state
+                    estimates{k} = [estimates{k} obj.density.expectedValue(states(i))];
+                end
+            end
+        end
+        
         function estimates = TOMHT(obj, states, Z, sensormodel, motionmodel, measmodel)
             %TOMHT tracks n object using track-oriented multi-hypothesis tracking
             %INPUT: state: structure array of size (1, number of objects) with two fields:
@@ -162,7 +226,7 @@ classdef n_objectracker
                     end
                     L = [L1 L2];
                     %Obtain M best assignments using Murty's algorithm
-%                     [col4rowBest,~,gainBest]=kBest2DAssign(L,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
+                    %                     [col4rowBest,~,gainBest]=kBest2DAssign(L,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
                     %Obtain M low cost assignments using Gibbs sampling
                     [col4rowBest,gainBest]= assign2DByGibbs(L,100,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
                     
