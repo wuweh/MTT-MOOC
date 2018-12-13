@@ -74,7 +74,7 @@ classdef n_objectracker
                 
                 L1 = inf(n,m);
                 for i = 1:n
-                    L1(i,meas_in_gate_per_object(:,i)) = -obj.density.predictedLikelihood(states(i), z_ingate(:,meas_in_gate_per_object(:,i)), measmodel)';
+                    L1(i,meas_in_gate_per_object(:,i)) = -obj.density.predictedLikelihood(states(i), z_ingate(:,meas_in_gate_per_object(:,i)), measmodel)'-log(sensormodel.P_D);
                 end
                 L2 = inf(n);
                 L2(logical(eye(n))) = -(singleobjecthypothesis.undetected(sensormodel.P_D,obj.gating.P_G)+log(sensormodel.lambda_c)+log(sensormodel.pdf_c))*ones(n,1);
@@ -117,7 +117,7 @@ classdef n_objectracker
                 
                 L1 = inf(n,m);
                 for i = 1:n
-                    L1(i,meas_in_gate_per_object(:,i)) = -obj.density.predictedLikelihood(states(i), z_ingate(:,meas_in_gate_per_object(:,i)), measmodel)';
+                    L1(i,meas_in_gate_per_object(:,i)) = -obj.density.predictedLikelihood(states(i), z_ingate(:,meas_in_gate_per_object(:,i)), measmodel)'-log(sensormodel.P_D);
                 end
                 L2 = inf(n);
                 L2(logical(eye(n))) = -(singleobjecthypothesis.undetected(sensormodel.P_D,obj.gating.P_G)+log(sensormodel.lambda_c)+log(sensormodel.pdf_c))*ones(n,1);
@@ -125,7 +125,7 @@ classdef n_objectracker
                 %Obtain M best assignments using Murty's algorithm
                 [col4rowBest,~,gainBest]=kBest2DAssign(L,obj.hypothesis_reduction.M);
                 %Obtain M low cost assignments using Gibbs sampling
-%                 [col4rowBest,gainBest]= assign2DByGibbs(L,1000,obj.hypothesis_reduction.M);
+%                 [col4rowBest,gainBest]= assign2DByGibbs(L,100,obj.hypothesis_reduction.M);
                 
                 %Normalize hypothesis weight
                 normalizedWeight = normalizeLogWeights(-gainBest);
@@ -201,7 +201,7 @@ classdef n_objectracker
                             (sensormodel.P_D,obj.gating.P_G)+log(sensormodel.lambda_c)+log(sensormodel.pdf_c));
                         %predicted likelihood
                         likTable{i}(j,[false;logical(meas_in_gate_per_object(:,j))]) ...
-                            = -obj.density.predictedLikelihood(hypoTable{i}(j), Z{k}(:,logical(meas_in_gate_per_object(:,j))), measmodel)';
+                            = -obj.density.predictedLikelihood(hypoTable{i}(j), Z{k}(:,logical(meas_in_gate_per_object(:,j))), measmodel)'-log(sensormodel.P_D);
                         %update step, only consider measurements inside the gate
                         hypoTableUpd{i}{(j-1)*(m+1)+1} = hypoTable{i}(j);
                         for jj = 1:m
@@ -226,9 +226,9 @@ classdef n_objectracker
                     end
                     L = [L1 L2];
                     %Obtain M best assignments using Murty's algorithm
-                    %                     [col4rowBest,~,gainBest]=kBest2DAssign(L,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
+                    [col4rowBest,~,gainBest]=kBest2DAssign(L,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
                     %Obtain M low cost assignments using Gibbs sampling
-                    [col4rowBest,gainBest]= assign2DByGibbs(L,100,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
+%                     [col4rowBest,gainBest]= assign2DByGibbs(L,100,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
                     
                     col4rowBest(col4rowBest>m) = 0;
                     globalHypoWeightUpd = [globalHypoWeightUpd;-gainBest+globalHypoWeight(h)];

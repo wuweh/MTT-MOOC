@@ -67,7 +67,7 @@ classdef singleobjectracker
                     [max_predict_likelihood, nearest_neighbor_assoc] = max(predict_likelihood);
                     w_miss = singleobjecthypothesis.undetected(sensormodel.P_D,obj.gating.P_G);
                     missed_likelihood = w_miss+log(sensormodel.lambda_c)+log(sensormodel.pdf_c);
-                    if max_predict_likelihood > missed_likelihood
+                    if log(sensormodel.P_D)+max_predict_likelihood > missed_likelihood
                         nearest_neighbor_meas = z_ingate(:,nearest_neighbor_assoc);
                         state = obj.density.update(state, nearest_neighbor_meas, measmodel);
                     end
