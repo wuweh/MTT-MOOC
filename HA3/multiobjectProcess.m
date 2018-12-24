@@ -43,10 +43,14 @@ classdef multiobjectProcess
                         instance(i,:) = unifrnd(obj.spatial_distribution.paras{1}{idxParas}(i,1),obj.spatial_distribution.paras{1}{idxParas}(i,2),1,v);
                     end
                 case 'g'
-                    instance = mvnrnd(obj.spatial_distribution.paras{1}{idxParas},obj.spatial_distribution.paras{2}{idxParas},v);
+                    instance = mvnrnd(obj.spatial_distribution.paras{1}{idxParas},obj.spatial_distribution.paras{2}{idxParas},v)';
                 case 'gm'
                     gm = gmdistribution(obj.spatial_distribution.paras{1}{idxParas},obj.spatial_distribution.paras{2}{idxParas},obj.spatial_distribution.paras{3}{idxParas});
-                    instance = random(gm,v,1);
+                    if v == 0
+                        instance = [];
+                    else
+                        instance = random(gm,v)';
+                    end
             end
         end
         
