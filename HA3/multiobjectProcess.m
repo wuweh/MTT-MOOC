@@ -33,52 +33,56 @@ classdef multiobjectProcess
             end
         end
         
-        function instantiation = drawSamples(obj,idxParas,v)
+        function instance = drawSamples(obj,idxParas,v)
             %draw v elements from the given spatial distribution
             switch obj.spatial_distribution.name
                 case 'u'
-                    instantiation = unifrnd(obj.spatial_distribution.paras{1}{idxParas}(:,1),obj.spatial_distribution.paras{1}{idxParas}(:,2),v,1);
+                    dim = size(obj.spatial_distribution.paras{1}{idxParas},1);
+                    instance = zeros(dim,v);
+                    for i = 1:dim
+                        instance(i,:) = unifrnd(obj.spatial_distribution.paras{1}{idxParas}(i,1),obj.spatial_distribution.paras{1}{idxParas}(i,2),1,v);
+                    end
                 case 'g'
-                    instantiation = mvnrnd(obj.spatial_distribution.paras{1}{idxParas},obj.spatial_distribution.paras{2}{idxParas},v);
+                    instance = mvnrnd(obj.spatial_distribution.paras{1}{idxParas},obj.spatial_distribution.paras{2}{idxParas},v);
                 case 'gm'
                     gm = gmdistribution(obj.spatial_distribution.paras{1}{idxParas},obj.spatial_distribution.paras{2}{idxParas},obj.spatial_distribution.paras{3}{idxParas});
-                    instantiation = random(gm,v,1);
+                    instance = random(gm,v,1);
             end
         end
         
-        function instantiation = PoissonRFSs(obj,lambda)
+        function instance = PoissonRFSs(obj,lambda)
             %draw an integer v from Poisson distirbution with parameter
             %lambda
             v = poissrnd(lambda);
             %draw v elements from the given spatial distribution
-            instantiation = drawSamples(obj,1,v);
+            instance = drawSamples(obj,1,v);
         end
         
-        function instantiation = BernoulliRFSs(obj,r)
+        function instance = BernoulliRFSs(obj,r)
             %draw an integer v from Bernoulli distirbution with parameter r
             v = binornd(1,r);
             %draw v elements from the given spatial distribution
-            instantiation = drawSamples(obj,1,v);
+            instance = drawSamples(obj,1,v);
         end
         
-        function instantiation = multiBernoulliRFSs(obj,M,r)
-            instantiation = cell(M,1);
+        function instance = multiBernoulliRFSs(obj,M,r)
+            instance = cell(M,1);
             for i = 1:M
                 %draw an integer v from each Bernoulli distirbution with parameter r
                 v = binornd(1,r(i));
                 %draw v elements from the given spatial distribution
-                instantiation{i} = drawSamples(obj,i,v);
+                instance{i} = drawSamples(obj,i,v);
             end
         end
         
-        function instantiation = multiBernoulliMixtureRFSs(obj,M,r,p)
+        function instance = multiBernoulliMixtureRFSs(obj,M,r,p)
             %for simplicity, here we assume that Bernoulli component with
             %the same index in different multi-Bernoulli has the same pdf
             %but probability of existence
-            mbidx = mnrnd(1,p)==1;
+            mbidx = mnrnd(1,p/sum(p))==1;
             %draw an integer v from each Bernoulli distirbution with
             %parameter r of the selected multiBernoulli
-            instantiation = multiBernoulliRFSs(obj,M(mbidx),r{mbidx});
+            instance = multiBernoulliRFSs(obj,M(mbidx),r{mbidx});
         end
         
     end
