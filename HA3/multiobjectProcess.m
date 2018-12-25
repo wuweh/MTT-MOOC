@@ -4,6 +4,8 @@ classdef multiobjectProcess
     properties
         %only 1D and 2D distribution are considered
         spatial_distribution
+        RFS_type
+        card_pmf
     end
     
     methods
@@ -33,6 +35,15 @@ classdef multiobjectProcess
             end
         end
         
+        function cardStemPlot(obj, support)
+            figure
+            grid on
+            stem(support,obj.card_pmf(support))
+            xlabel('Cardinality')
+            ylabel('Probability')
+            title('Cardinality distribution')
+        end
+        
         function instance = drawSamples(obj,idxParas,v)
             %draw v elements from the given spatial distribution
             switch obj.spatial_distribution.name
@@ -54,24 +65,36 @@ classdef multiobjectProcess
             end
         end
         
-        function [instance, card_pmf] = PoissonRFSs(obj,lambda)
+        function [obj, instance] = PoissonRFSs(obj,lambda)
+            obj.RFS_type = 'Poisson';
+            obj.card_pmf = @(x) poisspdf(x, lambda);
             %draw an integer v from Poisson distirbution with parameter
             %lambda
             v = poissrnd(lambda);
             %draw v elements from the given spatial distribution
             instance = drawSamples(obj,1,v);
-            card_pmf = @(x) poisspdf(x, lambda);
         end
         
-        function [instance, card_pmf] = BernoulliRFSs(obj,r)
+        function [obj, instance] = BernoulliRFSs(obj,r)
+            obj.RFS_type = 'Bernoulli';
+            obj.card_pmf = @(x) binopdf(x,1,r);
             %draw an integer v from Bernoulli distirbution with parameter r
             v = binornd(1,r);
             %draw v elements from the given spatial distribution
             instance = drawSamples(obj,1,v);
-            card_pmf = @(x) binopdf(x,1,r);
         end
         
-        function [instance, card_pmf] = multiBernoulliRFSs(obj,M,r)
+        function [obj, instance] = multiBernoulliRFSs(obj,M,r)
+            obj.RFS_type = 'Multi-Bernoulli';
+            
+            if size(r,1) > 1
+                r = r';
+            end
+            lr1 = length(find(r==1));
+            r = r(r~=1);
+            pcard = [zeros(1,lr1) prod(1-r)*poly(-r./(1-r))];
+            obj.card_pmf = @(x) multiobjectProcess.createPMF(pcard,x);
+            
             instance = cell(M,1);
             for i = 1:M
                 %draw an integer v from each Bernoulli distirbution with parameter r
@@ -79,27 +102,16 @@ classdef multiobjectProcess
                 %draw v elements from the given spatial distribution
                 instance{i} = drawSamples(obj,i,v);
             end
-            
-            if size(r,1) > 1
-                r = r';
-            end
-            
-            lr1 = length(find(r==1));
-            r = r(r~=1);
-            pcard = [zeros(1,lr1) prod(1-r)*poly(-r./(1-r))];
-            card_pmf = @(x) multiobjectProcess.createPMF(pcard,x);
+            instance = cell2mat(instance');
         end
         
-        function [instance, card_pmf] = multiBernoulliMixtureRFSs(obj,M,r,p)
+        function [obj, instance] = multiBernoulliMixtureRFSs(obj,M,r,p)
             %for simplicity, here we assume that Bernoulli component with
             %the same index in different multi-Bernoulli has the same pdf
             %but probability of existence
-            p_norm = p/sum(p);
-            mbidx = mnrnd(1,p_norm)==1;
-            %draw an integer v from each Bernoulli distirbution with
-            %parameter r of the selected multiBernoulli
-            instance = multiBernoulliRFSs(obj,M(mbidx),r{mbidx});
+            obj.RFS_type = 'Multi-Bernoulli mixture';
             
+            p_norm = p/sum(p);
             num_mb = length(M);
             pcard = zeros(num_mb,max(M)+1);
             for i = 1:num_mb
@@ -111,7 +123,13 @@ classdef multiobjectProcess
                 p = p';
             end
             pcard = sum(pcard.*p');
-            card_pmf = @(x) multiobjectProcess.createPMF(pcard,x);
+            obj.card_pmf = @(x) multiobjectProcess.createPMF(pcard,x);
+
+            mbidx = mnrnd(1,p_norm)==1;
+            %draw an integer v from each Bernoulli distirbution with
+            %parameter r of the selected multiBernoulli
+            [~,instance] = multiBernoulliRFSs(obj,M(mbidx),r{mbidx});
+            instance = cell2mat(instance');
         end
         
     end
@@ -128,15 +146,6 @@ classdef multiobjectProcess
             end
         end
         
-        function cardStemPlot(card_pmf, support)
-            figure
-            grid on
-            stem(support,card_pmf(support))
-            xlabel('Cardinality')
-            ylabel('Probability')
-            title('Cardinality distribution')
-        end
-        
         function instance2Dplot(instance)
             figure
             grid on
@@ -147,7 +156,6 @@ classdef multiobjectProcess
         end
         
     end
-    
     
 end
 
