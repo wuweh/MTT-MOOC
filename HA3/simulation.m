@@ -12,6 +12,7 @@ RFS = spatialDistribution(RFS,inputArg1);
 lambda = 2;
 [PoissonInstance, card_pmf] = PoissonRFSs(RFS,lambda);
 multiobjectProcess.cardStemPlot(card_pmf, 0:10);
+multiobjectProcess.instance2Dplot(PoissonInstance);
 
 %Bernoulli RFS
 %2D
@@ -21,6 +22,7 @@ RFS = spatialDistribution(RFS,inputArg1);
 r = 0.5;
 [BernoulliInstance, card_pmf] = BernoulliRFSs(RFS,r);
 multiobjectProcess.cardStemPlot(card_pmf, 0:10);
+multiobjectProcess.instance2Dplot(BernoulliInstance);
 
 %multi-Bernoulli RFS
 %2D
@@ -33,6 +35,7 @@ r = ones(M,1)*0.5;
 [multiBernoulliInstance, card_pmf] = multiBernoulliRFSs(RFS,M,r);
 multiBernoulliInstance = cell2mat(multiBernoulliInstance');
 multiobjectProcess.cardStemPlot(card_pmf, 0:10);
+multiobjectProcess.instance2Dplot(multiBernoulliInstance);
 
 %multi-Bernoulli mixture RFS
 %2D
@@ -49,6 +52,8 @@ r{2} = ones(M(2),1)*0.5;
 [multiBernoulliMixtureInstance, card_pmf] = multiBernoulliMixtureRFSs(RFS,M,r,p);
 multiBernoulliMixtureInstance = cell2mat(multiBernoulliMixtureInstance');
 multiobjectProcess.cardStemPlot(card_pmf, 0:10);
+multiobjectProcess.instance2Dplot(multiBernoulliMixtureInstance);
+
 
 %% Gaussian distribution
 
@@ -65,6 +70,7 @@ RFS = spatialDistribution(RFS,inputArg1,inputArg2);
 lambda = 2;
 [PoissonInstance, card_pmf] = PoissonRFSs(RFS,lambda);
 multiobjectProcess.cardStemPlot(card_pmf, 0:10);
+multiobjectProcess.instance2Dplot(PoissonInstance);
 
 %Bernoulli RFS
 %2D
@@ -75,6 +81,7 @@ RFS = spatialDistribution(RFS,inputArg1,inputArg2);
 r = 0.5;
 [BernoulliInstance, card_pmf] = BernoulliRFSs(RFS,r);
 multiobjectProcess.cardStemPlot(card_pmf, 0:10);
+multiobjectProcess.instance2Dplot(BernoulliInstance);
 
 %multi-Bernoulli RFS
 %2D
@@ -89,6 +96,7 @@ r = ones(M,1)*0.5;
 [multiBernoulliInstance, card_pmf] = multiBernoulliRFSs(RFS,M,r);
 multiBernoulliInstance = cell2mat(multiBernoulliInstance');
 multiobjectProcess.cardStemPlot(card_pmf, 0:10);
+multiobjectProcess.instance2Dplot(multiBernoulliInstance);
 
 %multi-Bernoulli mixture RFS
 %2D
@@ -108,6 +116,8 @@ r{2} = ones(M(2),1)*0.5;
 [multiBernoulliMixtureInstance, card_pmf] = multiBernoulliMixtureRFSs(RFS,M,r,p);
 multiBernoulliMixtureInstance = cell2mat(multiBernoulliMixtureInstance');
 multiobjectProcess.cardStemPlot(card_pmf, 0:10);
+multiobjectProcess.instance2Dplot(multiBernoulliMixtureInstance);
+
 
 %% Gaussian mixture distribution
 
@@ -127,6 +137,7 @@ RFS = spatialDistribution(RFS,inputArg1,inputArg2,inputArg3);
 lambda = 2;
 [PoissonInstance, card_pmf] = PoissonRFSs(RFS,lambda);
 multiobjectProcess.cardStemPlot(card_pmf, 0:10);
+multiobjectProcess.instance2Dplot(PoissonInstance);
 
 %Bernoulli RFS
 %2D
@@ -138,6 +149,7 @@ RFS = spatialDistribution(RFS,inputArg1,inputArg2,inputArg3);
 r = 0.5;
 [BernoulliInstance, card_pmf] = BernoulliRFSs(RFS,r);
 multiobjectProcess.cardStemPlot(card_pmf, 0:10);
+multiobjectProcess.instance2Dplot(BernoulliInstance);
 
 %multi-Bernoulli RFS
 %2D
@@ -154,6 +166,7 @@ r = ones(M,1)*0.5;
 [multiBernoulliInstance, card_pmf] = multiBernoulliRFSs(RFS,M,r);
 multiBernoulliInstance = cell2mat(multiBernoulliInstance');
 multiobjectProcess.cardStemPlot(card_pmf, 0:10);
+multiobjectProcess.instance2Dplot(multiBernoulliInstance);
 
 %multi-Bernoulli mixture RFS
 %2D
@@ -176,3 +189,6 @@ r{2} = ones(M(2),1)*0.5;
 [multiBernoulliMixtureInstance, card_pmf] = multiBernoulliMixtureRFSs(RFS,M,r,p);
 multiBernoulliMixtureInstance = cell2mat(multiBernoulliMixtureInstance');
 multiobjectProcess.cardStemPlot(card_pmf, 0:10);
+multiobjectProcess.instance2Dplot(multiBernoulliMixtureInstance);
+
+

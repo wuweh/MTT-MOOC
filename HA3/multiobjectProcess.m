@@ -137,6 +137,15 @@ classdef multiobjectProcess
             title('Cardinality distribution')
         end
         
+        function instance2Dplot(instance)
+            figure
+            grid on
+            plot(instance(1,:),instance(2,:),'o','LineWidth',2,'MarkerSize',5)
+            xlabel('x')
+            ylabel('y')
+            title('Samples')
+        end
+        
     end
     
     
