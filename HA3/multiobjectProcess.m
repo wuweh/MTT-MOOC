@@ -117,6 +117,7 @@ classdef multiobjectProcess
     end
     
     methods (Static)
+        
         function pmf = createPMF(pcard, pf)
             len = length(pf);
             pmf = zeros(1,len);
@@ -126,6 +127,16 @@ classdef multiobjectProcess
                 end
             end
         end
+        
+        function cardStemPlot(card_pmf, support)
+            figure
+            grid on
+            stem(support,card_pmf(support))
+            xlabel('Cardinality')
+            ylabel('Probability')
+            title('Cardinality distribution')
+        end
+        
     end
     
     
