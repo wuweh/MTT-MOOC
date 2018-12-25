@@ -54,16 +54,6 @@ classdef multiobjectProcess
             end
         end
         
-        function pmf = createPMF(pcard, pf)
-            len = length(pf);
-            pmf = zeros(1,len);
-            for i = 1:len
-                if pf(i)+1 <= length(pcard)
-                    pmf(i) = pcard(pf(i)+1);
-                end
-            end
-        end
-        
         function [instance, card_pmf] = PoissonRFSs(obj,lambda)
             %draw an integer v from Poisson distirbution with parameter
             %lambda
@@ -97,7 +87,7 @@ classdef multiobjectProcess
             lr1 = length(find(r==1));
             r = r(r~=1);
             pcard = [zeros(1,lr1) prod(1-r)*poly(-r./(1-r))];
-            card_pmf = @(x) createPMF(pcard,x);
+            card_pmf = @(x) multiobjectProcess.createPMF(pcard,x);
         end
         
         function [instance, card_pmf] = multiBernoulliMixtureRFSs(obj,M,r,p)
@@ -121,9 +111,21 @@ classdef multiobjectProcess
                 p = p';
             end
             pcard = sum(pcard.*p');
-            card_pmf = @(x) createPMF(pcard,x);
+            card_pmf = @(x) multiobjectProcess.createPMF(pcard,x);
         end
         
+    end
+    
+    methods (Static)
+        function pmf = createPMF(pcard, pf)
+            len = length(pf);
+            pmf = zeros(1,len);
+            for i = 1:len
+                if pf(i)+1 <= length(pcard)
+                    pmf(i) = pcard(pf(i)+1);
+                end
+            end
+        end
     end
     
     
