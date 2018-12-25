@@ -54,22 +54,34 @@ classdef multiobjectProcess
             end
         end
         
-        function instance = PoissonRFSs(obj,lambda)
+        function pmf = createPMF(pcard, pf)
+            len = length(pf);
+            pmf = zeros(1,len);
+            for i = 1:len
+                if pf(i)+1 <= length(pcard)
+                    pmf(i) = pcard(pf(i)+1);
+                end
+            end
+        end
+        
+        function [instance, card_pmf] = PoissonRFSs(obj,lambda)
             %draw an integer v from Poisson distirbution with parameter
             %lambda
             v = poissrnd(lambda);
             %draw v elements from the given spatial distribution
             instance = drawSamples(obj,1,v);
+            card_pmf = @(x) poisspdf(x, lambda);
         end
         
-        function instance = BernoulliRFSs(obj,r)
+        function [instance, card_pmf] = BernoulliRFSs(obj,r)
             %draw an integer v from Bernoulli distirbution with parameter r
             v = binornd(1,r);
             %draw v elements from the given spatial distribution
             instance = drawSamples(obj,1,v);
+            card_pmf = @(x) binopdf(x,1,r);
         end
         
-        function instance = multiBernoulliRFSs(obj,M,r)
+        function [instance, card_pmf] = multiBernoulliRFSs(obj,M,r)
             instance = cell(M,1);
             for i = 1:M
                 %draw an integer v from each Bernoulli distirbution with parameter r
@@ -77,18 +89,43 @@ classdef multiobjectProcess
                 %draw v elements from the given spatial distribution
                 instance{i} = drawSamples(obj,i,v);
             end
+            
+            if size(r,1) > 1
+                r = r';
+            end
+            
+            lr1 = length(find(r==1));
+            r = r(r~=1);
+            pcard = [zeros(1,lr1) prod(1-r)*poly(-r./(1-r))];
+            card_pmf = @(x) createPMF(pcard,x);
         end
         
-        function instance = multiBernoulliMixtureRFSs(obj,M,r,p)
+        function [instance, card_pmf] = multiBernoulliMixtureRFSs(obj,M,r,p)
             %for simplicity, here we assume that Bernoulli component with
             %the same index in different multi-Bernoulli has the same pdf
             %but probability of existence
-            mbidx = mnrnd(1,p/sum(p))==1;
+            p_norm = p/sum(p);
+            mbidx = mnrnd(1,p_norm)==1;
             %draw an integer v from each Bernoulli distirbution with
             %parameter r of the selected multiBernoulli
             instance = multiBernoulliRFSs(obj,M(mbidx),r{mbidx});
+            
+            num_mb = length(M);
+            pcard = zeros(num_mb,max(M)+1);
+            for i = 1:num_mb
+                lr1 = length(find(r{i}==1));
+                r{i} = r{i}(r{i}~=1);
+                pcard(i,:) = [zeros(1,lr1) prod(1-r{i})*poly(-r{i}./(1-r{i})) zeros(1,max(M)-M(i))];
+            end
+            if size(p,1) > 1
+                p = p';
+            end
+            pcard = sum(pcard.*p');
+            card_pmf = @(x) createPMF(pcard,x);
         end
         
     end
+    
+    
 end
 
