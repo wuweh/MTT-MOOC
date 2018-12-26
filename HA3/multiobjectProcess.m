@@ -87,14 +87,6 @@ classdef multiobjectProcess
         function [obj, instance] = multiBernoulliRFSs(obj,M,r)
             obj.RFS_type = 'Multi-Bernoulli';
             
-            if size(r,1) > 1
-                r = r';
-            end
-            lr1 = length(find(r==1));
-            r = r(r~=1);
-            pcard = [zeros(1,lr1) prod(1-r)*poly(-r./(1-r))];
-            obj.card_pmf = @(x) multiobjectProcess.createPMF(pcard,x);
-            
             instance = cell(M,1);
             for i = 1:M
                 %draw an integer v from each Bernoulli distirbution with parameter r
@@ -103,6 +95,15 @@ classdef multiobjectProcess
                 instance{i} = drawSamples(obj,i,v);
             end
             instance = cell2mat(instance');
+            
+            if size(r,1) > 1
+                r = r';
+            end
+            lr1 = length(find(r==1));
+            r = r(r~=1);
+            pcard = [zeros(1,lr1) prod(1-r)*poly(-r./(1-r))];
+            obj.card_pmf = @(x) multiobjectProcess.createPMF(pcard,x);
+
         end
         
         function [obj, instance] = multiBernoulliMixtureRFSs(obj,M,r,p)
@@ -112,6 +113,11 @@ classdef multiobjectProcess
             obj.RFS_type = 'Multi-Bernoulli mixture';
             
             p_norm = p/sum(p);
+            mbidx = mnrnd(1,p_norm)==1;
+            %draw an integer v from each Bernoulli distirbution with
+            %parameter r of the selected multiBernoulli
+            [~,instance] = multiBernoulliRFSs(obj,M(mbidx),r{mbidx});
+            
             num_mb = length(M);
             pcard = zeros(num_mb,max(M)+1);
             for i = 1:num_mb
@@ -124,12 +130,6 @@ classdef multiobjectProcess
             end
             pcard = sum(pcard.*p');
             obj.card_pmf = @(x) multiobjectProcess.createPMF(pcard,x);
-
-            mbidx = mnrnd(1,p_norm)==1;
-            %draw an integer v from each Bernoulli distirbution with
-            %parameter r of the selected multiBernoulli
-            [~,instance] = multiBernoulliRFSs(obj,M(mbidx),r{mbidx});
-            instance = cell2mat(instance');
         end
         
     end
