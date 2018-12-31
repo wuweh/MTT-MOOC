@@ -2,6 +2,7 @@ classdef multiobjectracker
     %MULTIOBJECTRACKER is a class containing functions to track n object in clutter.
     %Model structures need to be called:
     %sensormodel: a structure specifies the sensor parameters
+    %           P_S: object survival probability --- scalar
     %           P_D: object detection probability --- scalar
     %           lambda_c: average number of clutter measurements per time scan, Poisson distributed --- scalar
     %           pdf_c: clutter (Poisson) intensity --- scalar
@@ -24,10 +25,9 @@ classdef multiobjectracker
     
     methods
         
-        function obj = initialize(obj,density_class_handle,P_S,P_G,m_d,wmin,merging_threshold,M)
+        function obj = initialize(obj,density_class_handle,P_G,m_d,wmin,merging_threshold,M)
             %INITIATOR initializes singleobjectracker class
             %INPUT: density_class_handle: density class handle
-            %       P_S: object survival probability --- scalar
             %       P_G: gating size in decimal --- scalar
             %       m_d: measurement dimension --- scalar
             %       wmin: allowed minimum hypothesis weight --- scalar
@@ -40,7 +40,6 @@ classdef multiobjectracker
             %         obj.hypothesis_reduction.merging_threshold: merging threshold --- scalar
             %         obj.hypothesis_reduction.M: allowed maximum number of hypotheses --- scalar
             obj.density = feval(density_class_handle);
-            obj.P_S = P_S;
             obj.gating.P_G = P_G;
             obj.gating.size = chi2inv(obj.gating.P_G,m_d);
             obj.hypothesis_reduction.wmin = log(wmin);
@@ -57,7 +56,18 @@ classdef multiobjectracker
             %       Z: cell array of size (total tracking time, 1), each cell
             %          stores measurements of size (measurement dimension) x (number of measurements at corresponding time step)
             %OUTPUT:estimates: cell array of size (total tracking time, 1), each cell stores estimated object state of size (object state dimension) x (number of objects)
+            K = length(Z);
+            estimates = cell(K,1);
             
+            PPP = PoissonRFS();
+            PPP = initialize(PPP,obj.density,birthmodel);
+            
+            for k = 1:K
+                PPP = predict(PPP,motionmodel,sensormodel.P_S,birthmodel);
+                PPP = update(PPP,Z{k},measmodel,sensormodel,obj.gating);
+                PPP = componentReduction(PPP,obj.hypothesis_reduction);
+                estimates{k} = stateExtraction(PPP);
+            end
 
         end
         

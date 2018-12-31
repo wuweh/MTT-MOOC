@@ -6,16 +6,18 @@ dbstop if error
 P_D = 0.98;
 %Choose clutter rate
 lambda_c = 10;
+%Choose object survival probability
+P_S = 0.99;
 
 %Choose linear or nonlinear scenario
-scenario_type = 'nonlinear';
+scenario_type = 'linear';
 
 %% Create tracking scenario
 switch(scenario_type)
     case 'linear'
         %Create sensor model
         range_c = [-1000 1000;-1000 1000];
-        sensor_model = modelgen.sensormodel(P_D,lambda_c,range_c);
+        sensor_model = modelgen.sensormodel(P_S,P_D,lambda_c,range_c);
         
         %Create linear motion model
         T = 1;
@@ -27,24 +29,23 @@ switch(scenario_type)
         meas_model = measmodel.cvmeasmodel(sigma_r);
         
         %Create ground truth model
-        nbirths = 5;
+        nbirths = 4;
         K = 100;
         tbirth = zeros(nbirths,1);
         tdeath = zeros(nbirths,1);
         
-        birth_model = repmat(struct('w',0.03,'x',[],'P',eye(motion_model.d)),[1,nbirths]);
+        birth_model = repmat(struct('w',0.01,'x',[],'P',eye(motion_model.d)),[1,nbirths]);
         
         birth_model(1).x = [0; 0; 0; -10];        tbirth(1) = 1;   tdeath(1) = 50;
         birth_model(2).x = [400; -600; -10; 5];   tbirth(2) = 21;  tdeath(2) = 70;
         birth_model(3).x = [-800; -200; 20; -5];  tbirth(3) = 41;  tdeath(3) = 90;
-        birth_model(4).x = [0; 0; 7.5; -5];       tbirth(4) = 61;  tdeath(4) = K;
-        birth_model(5).x = [-200; 800; -3; -15];  tbirth(5) = 81;  tdeath(5) = K;
+        birth_model(4).x = [-200; 800; -3; -15];  tbirth(4) = 61;  tdeath(4) = K;
         
     case 'nonlinear'
         %Create sensor model
         %Range/bearing measurement range
         range_c = [-1000 1000;-pi pi];
-        sensor_model = modelgen.sensormodel(P_D,lambda_c,range_c);
+        sensor_model = modelgen.sensormodel(P_S,P_D,lambda_c,range_c);
         
         %Create nonlinear motion model (coordinate turn)
         T = 1;
@@ -62,7 +63,7 @@ switch(scenario_type)
         nbirths = 4;
         K = 100;
         
-        birth_model = repmat(struct('w',0.03,'x',[],'P',diag([1 1 1 1*pi/90 1*pi/90].^2)),[1,nbirths]);
+        birth_model = repmat(struct('w',0.01,'x',[],'P',diag([1 1 1 1*pi/90 1*pi/90].^2)),[1,nbirths]);
         
         birth_model(1).x = [0; 0; 5; 0; pi/180];       tbirth(1) = 1;   tdeath(1) = 50;
         birth_model(2).x = [20; 20; -20; 0; pi/90];    tbirth(2) = 21;  tdeath(2) = 70;
@@ -78,14 +79,13 @@ objectdata = objectdatagen(ground_truth,motion_model,ifnoisy);
 measdata = measdatagen(objectdata,sensor_model,meas_model);
 
 %% Object tracker parameter setting
-P_S = 0.99;             %object survival probability
 P_G = 0.999;            %gating size in percentage
-wmin = 1e-3;            %hypothesis pruning threshold
+wmin = 1e-4;            %hypothesis pruning threshold
 merging_threshold = 4;  %hypothesis merging threshold
-M = 20;                 %maximum number of hypotheses kept in PHD
+M = 100;                %maximum number of hypotheses kept in PHD
 density_class_handle = @GaussianDensity;    %density class handle
 tracker = multiobjectracker();
-tracker = tracker.initialize(density_class_handle,P_S,P_G,meas_model.d,wmin,merging_threshold,M);
+tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_threshold,M);
 
 %% NN tracker
 GMPHDestimates = GMPHDtracker(tracker, birth_model, measdata, sensor_model, motion_model, meas_model);

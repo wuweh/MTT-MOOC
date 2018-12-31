@@ -2,16 +2,19 @@ classdef modelgen
     %MODELGEN is a class used to create the tracking model
     
     methods (Static)
-        function obj = sensormodel(P_D,lambda_c,range_c)
+        function obj = sensormodel(P_S,P_D,lambda_c,range_c)
             %SENSORMODEL creates the sensor model
-            %INPUT:  P_D: object detection probability --- scalar
+            %INPUT:  P_S: object survival probability --- scalar
+            %        P_D: object detection probability --- scalar
             %        lambda_c: average number of clutter measurements per time scan, Poisson distributed --- scalar
             %        range_c: range of surveillance area --- if 2D model: 2 x 2 matrix of the form [xmin xmax;ymin ymax]
             %                                                if 1D model: 1 x 2 vector of the form [xmin xmax]
             %OUTPUT: obj.pdf_c: uniform clutter density --- scalar
+            %        obj.P_S: same as P_S
             %        obj.P_D: same as P_D 
             %        obj.lambda_c: same as lambda_c
             %        obj.range_c: same as range_c
+            obj.P_S = P_S;
             obj.P_D = P_D;
             obj.lambda_c = lambda_c;
             obj.range_c = range_c;
