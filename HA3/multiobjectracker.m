@@ -71,8 +71,6 @@ classdef multiobjectracker
 
         end
         
-        
-        
     end
 end
 

@@ -181,7 +181,7 @@ classdef GaussianDensity
             end
             
             %Normalize the weights
-            [w_hat,~] = normalizeLogWeights(w_hat);
+%             [w_hat,~] = normalizeLogWeights(w_hat);
             
         end
         
