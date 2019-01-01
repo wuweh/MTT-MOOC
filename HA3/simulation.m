@@ -5,12 +5,12 @@ dbstop if error
 %Choose object detection probability
 P_D = 0.98;
 %Choose clutter rate
-lambda_c = 60;
+lambda_c = 5;
 %Choose object survival probability
 P_S = 0.99;
 
 %Choose linear or nonlinear scenario
-scenario_type = 'linear';
+scenario_type = 'nonlinear';
 
 %% Create tracking scenario
 switch(scenario_type)
@@ -71,7 +71,7 @@ switch(scenario_type)
         nbirths = 4;
         K = 100;
         
-        birth_model = repmat(struct('w',0.01,'x',[],'P',diag([1 1 1 1*pi/90 1*pi/90].^2)),[1,nbirths]);
+        birth_model = repmat(struct('w',0.01,'x',[],'P',100*diag([1 1 1 1*pi/90 1*pi/90].^2)),[1,nbirths]);
         
         birth_model(1).x = [0; 0; 5; 0; pi/180];       tbirth(1) = 1;   tdeath(1) = 50;
         birth_model(2).x = [20; 20; -20; 0; pi/90];    tbirth(2) = 21;  tdeath(2) = 70;
@@ -99,6 +99,7 @@ tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_
 GMPHDestimates = GMPHDtracker(tracker, birth_model, measdata, sensor_model, motion_model, meas_model);
 
 %% Ploting
+%Trajectory plot
 figure
 hold on
 
@@ -110,6 +111,7 @@ h2 = plot(GMPHD_estimated_state(1,:), GMPHD_estimated_state(2,:),'r+');
 
 legend([h1 h2],'Ground Truth','PHD', 'Location', 'best')
 
+%Cardinality plot
 figure
 grid on
 hold on
@@ -122,3 +124,28 @@ h2 = plot(1:length(GMPHD_estimated_cardinality),GMPHD_estimated_cardinality,'r+'
 xlabel('Time step')
 ylabel('Cardinality')
 legend([h1 h2],'Ground Truth','PHD', 'Location', 'best')
+
+%GOSPA plot
+c = 100;
+p = 1;
+gospa = zeros(K,4);
+for k = 1:K
+    gospa(k,:) = GOSPAmetric(objectdata.X{k},GMPHDestimates{k},c,p);
+end
+
+figure
+subplot(4,1,1)
+plot(1:K,gospa(:,1),'linewidth',2)
+ylabel('GOSPA')
+subplot(4,1,2)
+plot(1:K,gospa(:,2),'linewidth',2)
+ylabel('Kinematics')
+subplot(4,1,3)
+plot(1:K,gospa(:,3),'linewidth',2)
+ylabel('# Miss')
+subplot(4,1,4)
+plot(1:K,gospa(:,4),'linewidth',2)
+xlabel('Time Step'); ylabel('# False')
+
+
+
