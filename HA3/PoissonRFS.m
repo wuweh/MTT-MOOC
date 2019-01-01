@@ -1,61 +1,80 @@
 classdef PoissonRFS
-    %POISSONRFS
+    %POISSONRFS is a class containing necessary functions to implement the PHD filter
+    %DEPENDENCIES: singleobjecthypothesis.m
+    %              GaussianDensity.m
+    %              normalizeLogWeights.m
+    %              hypothesisReduction.m
     
     properties
-        density
-        paras
+        density %density class handle
+        paras   %parameters specify a PPP
     end
     
     methods
         function obj = initialize(obj,density_class_handle,birthmodel)
-            %INITIATOR
+            %INITIATOR initializes PoissonRFS class
+            %INPUT: density_class_handle: density class handle
+            %       birthmodel: a struct specifying the intensity (mixture) of a PPP birth model
+            %OUTPUT:obj.density: density class handle
+            %       obj.paras.w: weights of mixture components --- vector
+            %                    of size (number of mixture components x 1)
+            %       obj.paras.states: parameters of mixture components ---
+            %                    struct array of size (number of mixture components x 1)
             obj.density = density_class_handle;
             obj.paras.w = log([birthmodel.w]');
             obj.paras.states = rmfield(birthmodel,'w')';
         end
         
         function obj = predict(obj,motionmodel,P_S,birthmodel)
-            %PREDICT
+            %PREDICT performs PPP prediction step
+            %INPUT: P_S: object survival probability
+            %       birthmodel: a struct specifying the intensity (mixture) of a PPP birth model
             obj.paras.w = obj.paras.w + log(P_S);
             obj.paras.states = arrayfun(@(x) obj.density.predict(x, motionmodel), obj.paras.states);
-            %Incorporate birth terms
+            %Incorporate birth terms into predicted PPP
             obj.paras.w = [obj.paras.w;[birthmodel.w]'];
             obj.paras.states = [obj.paras.states;rmfield(birthmodel,'w')'];
         end
         
         function obj = update(obj,z,measmodel,sensormodel,gating)
-            %Undetected objects
+            %Undetected performs PPP update step
+            %INPUT: gating: a struct with two fields: P_G, size used to
+            %               specify the gating parameters
+            
+            %update weights of mixture compoenent resulted from missed detection
             w_upd = obj.paras.w + singleobjecthypothesis.undetected(sensormodel.P_D,gating.P_G);
             states_upd = obj.paras.states;
             
-            %Detected objects
             n = length(obj.paras.w);
-            %Gating
+            %perform gating for each mixture component
             meas_in_gate_per_object = zeros(size(z,2),n);
             for i = 1:n
                 [~,meas_in_gate_per_object(:,i)] = obj.density.ellipsoidalGating(obj.paras.states(i),z,measmodel,gating.size);
             end
             used_meas_idx = sum(meas_in_gate_per_object,2) >= 1;
+            %returns a matrix with boolean element (j,i) specifying whether
+            %measurement j falls inside the gate formed by component i
             meas_in_gate_per_object = logical(meas_in_gate_per_object(used_meas_idx,:));
             z_ingate = z(:,used_meas_idx);
             
             m = size(z_ingate,2);
             w = zeros(size(meas_in_gate_per_object));
-            %Update and append component
+            %update weights of mixture compoenent resulted from measurement update
             for i = 1:n
                 if any(meas_in_gate_per_object(:,i))
-                    [states_i,w(meas_in_gate_per_object(:,i),i)] = singleobjecthypothesis.detected(obj.density,obj.paras.states(i),z_ingate(:,meas_in_gate_per_object(:,i)),measmodel,sensormodel.P_D);
+                    [states_i,w(meas_in_gate_per_object(:,i),i)] = ...
+                        singleobjecthypothesis.detected(obj.density,obj.paras.states(i),z_ingate(:,meas_in_gate_per_object(:,i)),measmodel,sensormodel.P_D);
                     states_upd = [states_upd;states_i];
                     w(meas_in_gate_per_object(:,i),i) = w(meas_in_gate_per_object(:,i),i) + obj.paras.w(i);
                 end
             end
-            %Normalise weight
+            %normalise weights of mixture components resulted from being updated by the same measurement
             for j = 1:m
                 w_temp = [w(j,meas_in_gate_per_object(j,:)) log(sensormodel.lambda_c)+log(sensormodel.pdf_c)];
                 w_temp = normalizeLogWeights(w_temp);
                 w(j,meas_in_gate_per_object(j,:)) = w_temp(1:end-1);
             end
-            %Append weight
+
             for i = 1:n
                 w_upd = [w_upd;w(meas_in_gate_per_object(:,i),i)];
             end
@@ -67,7 +86,8 @@ classdef PoissonRFS
 %                 states_j = repmat(states_upd(1),[num_objects_in_gate,1]);
 %                 w_j = zeros(num_objects_in_gate,1);
 %                 for i = 1:num_objects_in_gate
-%                     [states_j(i),w_j(i)] = singleobjecthypothesis.detected(obj.density,obj.paras.states(states_idx(i)),z_ingate(:,j),measmodel,sensormodel.P_D);
+%                     [states_j(i),w_j(i)] = singleobjecthypothesis.detected...
+%                           (obj.density,obj.paras.states(states_idx(i)),z_ingate(:,j),measmodel,sensormodel.P_D);
 %                     w_j(i) = w_j(i) + obj.paras.w(states_idx(i));
 %                 end
 %                 
@@ -83,16 +103,28 @@ classdef PoissonRFS
         end
         
         function obj = componentReduction(obj,hypothesis_reduction)
-            %PRUNE
+            %COMPONENTREDUCTION approximates the PPP by representing its
+            %intensity with fewer parameters
+            %pruning
             [obj.paras.w, obj.paras.states] = hypothesisReduction.prune(obj.paras.w, obj.paras.states, hypothesis_reduction.wmin);
-            %MERGING
+            %merging
             [obj.paras.w, obj.paras.states] = hypothesisReduction.merge(obj.paras.w, obj.paras.states, hypothesis_reduction.merging_threshold, obj.density);
-            %CAPPING
+            %capping
             [obj.paras.w, obj.paras.states] = hypothesisReduction.cap(obj.paras.w, obj.paras.states, hypothesis_reduction.M);
         end
         
         function estimates = stateExtraction(obj)
+            %STATEEXTRACTION extracts estimation from PPP intensity
             estimates = [];
+%             n = round(sum(exp(obj.paras.w)));
+%             if n > 0
+%                 [~,I] = sort(obj.paras.w,'descend');
+%                 for j = 1:n
+%                     state = obj.density.expectedValue(obj.paras.states(I(j)));
+%                     estimates = [estimates state];
+%                 end
+%             end
+
             idx = find(obj.paras.w > log(0.5));
             if ~isempty(idx)
                 for j = 1:length(idx)
@@ -100,6 +132,15 @@ classdef PoissonRFS
                     estimates = [estimates state];
                 end
             end
+            
+%             idx = find(obj.paras.w > log(0.5));
+%             if ~isempty(idx)
+%                 for j = 1:length(idx)
+%                     repeat_num_targets= round(exp(obj.paras.w(idx(j))));
+%                     state = repmat(obj.density.expectedValue(obj.paras.states(idx(j))),[1,repeat_num_targets]);
+%                     estimates = [estimates state];
+%                 end
+%             end
         end
         
     end

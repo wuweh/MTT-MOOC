@@ -56,16 +56,23 @@ classdef multiobjectracker
             %       Z: cell array of size (total tracking time, 1), each cell
             %          stores measurements of size (measurement dimension) x (number of measurements at corresponding time step)
             %OUTPUT:estimates: cell array of size (total tracking time, 1), each cell stores estimated object state of size (object state dimension) x (number of objects)
+            
             K = length(Z);
             estimates = cell(K,1);
             
+            %Create a class instance
             PPP = PoissonRFS();
+            %Initialize the PPP
             PPP = initialize(PPP,obj.density,birthmodel);
             
             for k = 1:K
+                %PPP prediction
                 PPP = predict(PPP,motionmodel,sensormodel.P_S,birthmodel);
+                %PPP update
                 PPP = update(PPP,Z{k},measmodel,sensormodel,obj.gating);
+                %PPP approximation
                 PPP = componentReduction(PPP,obj.hypothesis_reduction);
+                %Extract state estimates from the PPP
                 estimates{k} = stateExtraction(PPP);
             end
 

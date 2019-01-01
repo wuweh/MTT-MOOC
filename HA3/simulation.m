@@ -5,12 +5,12 @@ dbstop if error
 %Choose object detection probability
 P_D = 0.98;
 %Choose clutter rate
-lambda_c = 5;
+lambda_c = 60;
 %Choose object survival probability
 P_S = 0.99;
 
 %Choose linear or nonlinear scenario
-scenario_type = 'nonlinear';
+scenario_type = 'linear';
 
 %% Create tracking scenario
 switch(scenario_type)
@@ -130,6 +130,7 @@ c = 100;
 p = 1;
 gospa = zeros(K,4);
 for k = 1:K
+    %Evaluate kinematics estimation performance using GOSPA metric
     gospa(k,:) = GOSPAmetric(objectdata.X{k},GMPHDestimates{k},c,p);
 end
 

@@ -1,6 +1,6 @@
 function [w,mbm_r,mbm_pdf] = mb2mbm01(mb_r,mb_pdf)
 %MB2MBM01 converts a multi-Bernoulli process to a multi-Bernoulli mixture
-%process with probability of existence r \in [0,1]. 
+%process with probability of existence r \in (0,1]. 
 %INPUT: mb_r: probability of existence --- vector of size (number of
 %               Bernoulli components x 1).
 %       mb_pdf: object density function if exists --- struct of size (number
