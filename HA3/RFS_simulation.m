@@ -1,7 +1,9 @@
+% A script used to simulate how to draw samples from Poisson, Bernoulli,
+% multi-Bernoulli and multi-Bernoulli mixture RFSs with possible uniform,
+% Gaussian or Gaussian mixture spatial distribution.
+clc;clear;close all
+
 %% uniform distribution
-
-clc;clear
-
 RFS = multiobjectProcess();
 
 %Poisson RFS
@@ -32,7 +34,7 @@ inputArg1{2} = [-1 1;-1 1];
 RFS = spatialDistribution(RFS,inputArg1);
 M = 2;
 r = ones(M,1)*0.5;
-[RFS, multiBernoulliInstance] = multiBernoulliRFSs(RFS,M,r);
+[RFS, multiBernoulliInstance] = multiBernoulliRFSs(RFS,r);
 cardStemPlot(RFS, 0:10);
 multiobjectProcess.instance2Dplot(multiBernoulliInstance);
 
@@ -48,15 +50,12 @@ p = [0.5 0.5];
 r = cell(length(M),1);
 r{1} = ones(M(1),1)*0.5;
 r{2} = ones(M(2),1)*0.5;
-[RFS, multiBernoulliMixtureInstance] = multiBernoulliMixtureRFSs(RFS,M,r,p);
+[RFS, multiBernoulliMixtureInstance] = multiBernoulliMixtureRFSs(RFS,r,p);
 cardStemPlot(RFS, 0:10);
 multiobjectProcess.instance2Dplot(multiBernoulliMixtureInstance);
 
 
 %% Gaussian distribution
-
-clc;clear
-
 RFS = multiobjectProcess();
 
 %Poisson RFS
@@ -91,7 +90,7 @@ inputArg2{2} = eye(2);
 RFS = spatialDistribution(RFS,inputArg1,inputArg2);
 M = 2;
 r = ones(M,1)*0.5;
-[RFS, multiBernoulliInstance] = multiBernoulliRFSs(RFS,M,r);
+[RFS, multiBernoulliInstance] = multiBernoulliRFSs(RFS,r);
 cardStemPlot(RFS, 0:10);
 multiobjectProcess.instance2Dplot(multiBernoulliInstance);
 
@@ -110,17 +109,13 @@ p = [0.5 0.5];
 r = cell(length(M),1);
 r{1} = ones(M(1),1)*0.5;
 r{2} = ones(M(2),1)*0.5;
-[RFS, multiBernoulliMixtureInstance] = multiBernoulliMixtureRFSs(RFS,M,r,p);
+[RFS, multiBernoulliMixtureInstance] = multiBernoulliMixtureRFSs(RFS,r,p);
 cardStemPlot(RFS, 0:10);
 multiobjectProcess.instance2Dplot(multiBernoulliMixtureInstance);
 
 
 %% Gaussian mixture distribution
-
 %covaraince can be the same across components
-
-clc;clear
-
 RFS = multiobjectProcess();
 
 %Poisson RFS
@@ -159,7 +154,7 @@ inputArg3{2} = [0.5 0.5];
 RFS = spatialDistribution(RFS,inputArg1,inputArg2,inputArg3);
 M = 2;
 r = ones(M,1)*0.5;
-[RFS, multiBernoulliInstance] = multiBernoulliRFSs(RFS,M,r);
+[RFS, multiBernoulliInstance] = multiBernoulliRFSs(RFS,r);
 cardStemPlot(RFS, 0:10);
 multiobjectProcess.instance2Dplot(multiBernoulliInstance);
 
@@ -181,7 +176,7 @@ p = [0.5 0.5];
 r = cell(length(M),1);
 r{1} = ones(M(1),1)*0.5;
 r{2} = ones(M(2),1)*0.5;
-[RFS, multiBernoulliMixtureInstance] = multiBernoulliMixtureRFSs(RFS,M,r,p);
+[RFS, multiBernoulliMixtureInstance] = multiBernoulliMixtureRFSs(RFS,r,p);
 cardStemPlot(RFS, 0:10);
 multiobjectProcess.instance2Dplot(multiBernoulliMixtureInstance);
 

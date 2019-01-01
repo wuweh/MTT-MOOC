@@ -1,8 +1,22 @@
 classdef multiobjectProcess
-    %MULTIOBJECTPROCESS
+    %MULTIOBJECTPROCESS is a class used to draw samples from RFSs
+    %PROPERTIES: 
+    %spatial_distribution: a struct with two fields:
+    %   name: a string specifing a spatial distribution by its name, 'u'-- uniform
+    %         distribution, 'g' -- Gaussian distribution, 'gm' -- Gaussian
+    %         mixture distribution
+    %   paras: a cell array/matrix storing spatial distribution parameters
+    %          uniform distribution, size (1 x i): interval 
+    %          Gaussian distribution, size (2 x i): mean and covariance
+    %          Gaussian mixture, size (3 x i): means, covariances and mixing proportions
+    %          i: number of RFS components, e.g., Poisson and Bernoulli, i = 1, 
+    %             multi-Bernoulli and multi-Bernoulli mixture, 
+    %             i = number of Bernoulli components
+    %RFS_type: a string specifying the type of RFS, e.g., 'Poisson', 'Bernoulli'
+    %card_pmf: a function handle that returns the cardinality probability 
+    %          mass function of the cardinality of some RFS with the given support.
     
     properties
-        %only 1D and 2D distribution are considered
         spatial_distribution
         RFS_type
         card_pmf
@@ -11,8 +25,8 @@ classdef multiobjectProcess
     methods
         
         function obj = spatialDistribution(obj,inputArg1,inputArg2,inputArg3)
-            %SPATIALDISTRIBUTION constructs an instance of this class
-            %depending on inputs, create the corresponding distribution
+            %SPATIALDISTRIBUTION assigns the 'spatial_distribution' property
+            %INPUT: inputArg1, inputArg2, inputArg3: input arguments
             switch nargin
                 case 2
                     obj.spatial_distribution.name = 'u';
@@ -36,6 +50,8 @@ classdef multiobjectProcess
         end
         
         function cardStemPlot(obj, support)
+            %CARDSTEMPLOT creates a stem plot of the cardinality pmf
+            %INPUT: support: the support of the given cardinality pmf --- vector
             figure
             grid on
             stem(support,obj.card_pmf(support))
@@ -45,7 +61,12 @@ classdef multiobjectProcess
         end
         
         function instance = drawSamples(obj,idxParas,v)
-            %draw v elements from the given spatial distribution
+            %DRAWSAMPLES draw samples from the given spatial distribution
+            %INPUT: idxParas: index of parameters used to specify the
+            %                 spatial distribution --- scalar
+            %       v: number of samples to be drawn --- scalar
+            %OUTPUT:instance: drawn samples of size (d, v), d: dimension
+            %                 of the spatial distribution
             switch obj.spatial_distribution.name
                 case 'u'
                     dim = size(obj.spatial_distribution.paras{1}{idxParas},1);
@@ -66,16 +87,25 @@ classdef multiobjectProcess
         end
         
         function [obj, instance] = PoissonRFSs(obj,lambda)
+            %POISSONRFSS draw samples from and calculate the cardinality 
+            %pmf of some Poisson RFS
+            %INPUT: lambda: mean of cardinality pmf --- scalar
+            %OUTPUT:instance: sample instances of size (d, v), d: dimension
+            %                 of the spatial distribution, v: number of samples
             obj.RFS_type = 'Poisson';
             obj.card_pmf = @(x) poisspdf(x, lambda);
-            %draw an integer v from Poisson distirbution with parameter
-            %lambda
+            %draw an integer v from Poisson distirbution with parameter lambda
             v = poissrnd(lambda);
             %draw v elements from the given spatial distribution
             instance = drawSamples(obj,1,v);
         end
         
         function [obj, instance] = BernoulliRFSs(obj,r)
+            %BERNOULLIRFSS draw samples from and calculate the cardinality 
+            %pmf of some Bernoulli RFS
+            %INPUT: r: with probability r, the RFS cardinality = 1 --- scalar
+            %OUTPUT:instance: sample instances of size (d, v), d: dimension
+            %                 of the spatial distribution, v: number of samples
             obj.RFS_type = 'Bernoulli';
             obj.card_pmf = @(x) binopdf(x,1,r);
             %draw an integer v from Bernoulli distirbution with parameter r
@@ -84,9 +114,15 @@ classdef multiobjectProcess
             instance = drawSamples(obj,1,v);
         end
         
-        function [obj, instance] = multiBernoulliRFSs(obj,M,r)
+        function [obj, instance] = multiBernoulliRFSs(obj,r)
+            %MULTIBERNOULLIRFSS draw samples from and calculate the cardinality 
+            %pmf of some multi-Bernoulli RFS
+            %INPUT: r: vector of size (number of Bernoulli components x 1)
+            %OUTPUT:instance: sample instances of size (d, v), d: dimension
+            %                 of the spatial distribution, v: number of samples
             obj.RFS_type = 'Multi-Bernoulli';
-            
+            M = length(r);
+            %draw at most M samples
             instance = cell(M,1);
             for i = 1:M
                 %draw an integer v from each Bernoulli distirbution with parameter r
@@ -96,6 +132,7 @@ classdef multiobjectProcess
             end
             instance = cell2mat(instance');
             
+            %calculate the cardinality pmf of a multi-Bernoulli RFS
             if size(r,1) > 1
                 r = r';
             end
@@ -106,20 +143,30 @@ classdef multiobjectProcess
 
         end
         
-        function [obj, instance] = multiBernoulliMixtureRFSs(obj,M,r,p)
-            %for simplicity, here we assume that Bernoulli component with
+        function [obj, instance] = multiBernoulliMixtureRFSs(obj,r,p)
+            %MULTIBERNOULLIRFSS draw samples from and calculate the cardinality 
+            %pmf of some multi-Bernoulli RFS
+            %INPUT: r: cell array of size (number of multi-Bernoullis x 1),
+            %          each cell contains a vector of size (number of Bernoulli components x 1)
+            %OUTPUT:instance: sample instances of size (d, v), d: dimension
+            %                 of the spatial distribution, v: number of samples
+            
+            %For convenience, here we assume that Bernoulli component with
             %the same index in different multi-Bernoulli has the same pdf
             %but probability of existence
             obj.RFS_type = 'Multi-Bernoulli mixture';
-            
+            M = cellfun('length',r);
+
+            %normalise weights of different multi-Bernoullis
             p_norm = p/sum(p);
             mbidx = mnrnd(1,p_norm)==1;
             %draw an integer v from each Bernoulli distirbution with
-            %parameter r of the selected multiBernoulli
-            [~,instance] = multiBernoulliRFSs(obj,M(mbidx),r{mbidx});
+            %parameter r of the selected multi-Bernoulli
+            [~,instance] = multiBernoulliRFSs(obj,r{mbidx});
             
             num_mb = length(M);
             pcard = zeros(num_mb,max(M)+1);
+            %calculate the cardinality pmf for each multi-Bernoulli RFS
             for i = 1:num_mb
                 lr1 = length(find(r{i}==1));
                 r{i} = r{i}(r{i}~=1);
@@ -128,6 +175,7 @@ classdef multiobjectProcess
             if size(p,1) > 1
                 p = p';
             end
+            %calculate the cardinality pmf of the multi-Bernoulli mixture
             pcard = sum(pcard.*p');
             obj.card_pmf = @(x) multiobjectProcess.createPMF(pcard,x);
         end
@@ -137,6 +185,7 @@ classdef multiobjectProcess
     methods (Static)
         
         function pmf = createPMF(pcard, pf)
+            %CREATEPMF helps to create the card_pmf function handle
             len = length(pf);
             pmf = zeros(1,len);
             for i = 1:len
@@ -147,9 +196,13 @@ classdef multiobjectProcess
         end
         
         function instance2Dplot(instance)
+            %INSTANCE2DPLOT creates a scatter plot of samples instances
+            %ONLY SUPPORT 2D DISTRIBUTIONS
             figure
-            grid on
-            plot(instance(1,:),instance(2,:),'o','LineWidth',2,'MarkerSize',5)
+            if ~isempty(instance)
+                plot(instance(1,:),instance(2,:),'o','LineWidth',2,'MarkerSize',5)
+                grid on
+            end
             xlabel('x')
             ylabel('y')
             title('Samples')

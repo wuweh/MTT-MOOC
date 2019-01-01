@@ -95,7 +95,7 @@ density_class_handle = @GaussianDensity;    %density class handle
 tracker = multiobjectracker();
 tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_threshold,M);
 
-%% NN tracker
+%% GM-PHD filter
 GMPHDestimates = GMPHDtracker(tracker, birth_model, measdata, sensor_model, motion_model, meas_model);
 
 %% Ploting
@@ -146,6 +146,3 @@ ylabel('# Miss')
 subplot(4,1,4)
 plot(1:K,gospa(:,4),'linewidth',2)
 xlabel('Time Step'); ylabel('# False')
-
-
-

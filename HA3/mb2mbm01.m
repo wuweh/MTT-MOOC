@@ -18,10 +18,12 @@ function [w,mbm_r,mbm_pdf] = mb2mbm01(mb_r,mb_pdf)
 %NOTE: if a Bernoulli process has probability of existence r = 0, it is
 %then not represented in the multi-Bernoulli process.
 
+%Put Bernoulli components with probability of existence r = 1 aside
 idx1 = mb_r == 1;
 mb_r1 = mb_r(idx1);
 mb_pdf_r1 = mb_pdf(idx1);
 
+%Select out Bernoulli components with probability of existence r < 1
 idx2 = mb_r < 1;
 mb_r = mb_r(idx2);
 mb_pdf = mb_pdf(idx2);
@@ -30,23 +32,28 @@ w = [];
 mbm_r = [];
 mbm_pdf = [];
 
-num_mb = length(mb_r);
-for i = 1:num_mb
-    C = nchoosek(1:num_mb,i);
+num_b = length(mb_r);
+for i = 1:num_b
+    %Note that Bernoulli components in a multi-Bernoulli are unordered
+    C = nchoosek(1:num_b,i);
     num = size(C,1);
     mbm_r_temp = cell(num,1);
     mbm_pdf_temp = cell(num,1);
     w_temp = zeros(num,1);
     for j = 1:num
+        %Append Bernoulli components with probability of existence r = 1 
         mbm_r_temp{j} = [mb_r1;mb_r(C(j,:))];
         mbm_pdf_temp{j} = [mb_pdf_r1;mb_pdf(C(j,:))];
+        %Calculate weights of multi-Bernoulli components
         w_temp(j) = prod(1-mb_r)*prod(mb_r(C(j,:)))/prod(1-mb_r(C(j,:)));
     end
+    %Append results of each combinatorics
     mbm_r = [mbm_r;mbm_r_temp];
     mbm_pdf = [mbm_pdf;mbm_pdf_temp];
     w = [w;w_temp];
 end
 
+%Normalise weights
 w = w/sum(w);
 
 end

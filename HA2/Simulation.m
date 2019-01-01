@@ -81,7 +81,7 @@ ifnoisy = 0;
 objectdata = objectdatagen(ground_truth,motion_model,ifnoisy);
 measdata = measdatagen(objectdata,sensor_model,meas_model);
 
-%% Single object tracker parameter setting
+%% N-object tracker parameter setting
 P_G = 0.999;            %gating size in percentage
 wmin = 1e-3;            %hypothesis pruning threshold
 merging_threshold = 4;  %hypothesis merging threshold
@@ -90,7 +90,7 @@ density_class_handle = @GaussianDensity;    %density class handle
 tracker = n_objectracker();
 tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_threshold,M);
 
-%% NN tracker
+%% GNN tracker
 GNNestimates = GNNtracker(tracker, initial_state, measdata, sensor_model, motion_model, meas_model);
 
 %% JPDA tracker
