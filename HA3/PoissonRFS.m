@@ -30,6 +30,7 @@ classdef PoissonRFS
             
             %Detected objects
             n = length(obj.paras.w);
+            %Gating
             meas_in_gate_per_object = zeros(size(z,2),n);
             for i = 1:n
                 [~,meas_in_gate_per_object(:,i)] = obj.density.ellipsoidalGating(obj.paras.states(i),z,measmodel,gating.size);
@@ -37,23 +38,45 @@ classdef PoissonRFS
             used_meas_idx = sum(meas_in_gate_per_object,2) >= 1;
             meas_in_gate_per_object = logical(meas_in_gate_per_object(used_meas_idx,:));
             z_ingate = z(:,used_meas_idx);
+            
             m = size(z_ingate,2);
-            for j = 1:m
-                num_objects_in_gate = sum(meas_in_gate_per_object(j,:));
-                states_idx = find(meas_in_gate_per_object(j,:)==1);
-                states_j = repmat(states_upd(1),[num_objects_in_gate,1]);
-                w_j = zeros(num_objects_in_gate,1);
-                for i = 1:num_objects_in_gate
-                    [states_j(i),w_j(i)] = singleobjecthypothesis.detected(obj.density,obj.paras.states(states_idx(i)),z_ingate(:,j),measmodel,sensormodel.P_D);
-                    w_j(i) = w_j(i) + obj.paras.w(states_idx(i));
+            w = zeros(size(meas_in_gate_per_object));
+            %Update and append component
+            for i = 1:n
+                if any(meas_in_gate_per_object(:,i))
+                    [states_i,w(meas_in_gate_per_object(:,i),i)] = singleobjecthypothesis.detected(obj.density,obj.paras.states(i),z_ingate(:,meas_in_gate_per_object(:,i)),measmodel,sensormodel.P_D);
+                    states_upd = [states_upd;states_i];
+                    w(meas_in_gate_per_object(:,i),i) = w(meas_in_gate_per_object(:,i),i) + obj.paras.w(i);
                 end
-                
-                w_temp = [w_j;log(sensormodel.lambda_c)+log(sensormodel.pdf_c)];
-                w_temp = normalizeLogWeights(w_temp);
-                
-                w_upd = [w_upd;w_temp(1:end-1)];
-                states_upd = [states_upd;states_j];
             end
+            %Normalise weight
+            for j = 1:m
+                w_temp = [w(j,meas_in_gate_per_object(j,:)) log(sensormodel.lambda_c)+log(sensormodel.pdf_c)];
+                w_temp = normalizeLogWeights(w_temp);
+                w(j,meas_in_gate_per_object(j,:)) = w_temp(1:end-1);
+            end
+            %Append weight
+            for i = 1:n
+                w_upd = [w_upd;w(meas_in_gate_per_object(:,i),i)];
+            end
+            
+            %Alternative implementation
+%             for j = 1:m
+%                 num_objects_in_gate = sum(meas_in_gate_per_object(j,:));
+%                 states_idx = find(meas_in_gate_per_object(j,:)==1);
+%                 states_j = repmat(states_upd(1),[num_objects_in_gate,1]);
+%                 w_j = zeros(num_objects_in_gate,1);
+%                 for i = 1:num_objects_in_gate
+%                     [states_j(i),w_j(i)] = singleobjecthypothesis.detected(obj.density,obj.paras.states(states_idx(i)),z_ingate(:,j),measmodel,sensormodel.P_D);
+%                     w_j(i) = w_j(i) + obj.paras.w(states_idx(i));
+%                 end
+%                 
+%                 w_temp = [w_j;log(sensormodel.lambda_c)+log(sensormodel.pdf_c)];
+%                 w_temp = normalizeLogWeights(w_temp);
+%                 
+%                 w_upd = [w_upd;w_temp(1:end-1)];
+%                 states_upd = [states_upd;states_j];
+%             end
             
             obj.paras.w = w_upd;
             obj.paras.states = states_upd;
