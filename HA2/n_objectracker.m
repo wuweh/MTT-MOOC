@@ -91,13 +91,44 @@ classdef n_objectracker
         
         function estimates = JPDAtracker(obj, states, Z, sensormodel, motionmodel, measmodel)
             %JPDATRACKER tracks n object using global nearest neighbor association
-            %INPUT: state: structure array of size (1, number of objects) with two fields:
+            %INPUT: obj: a class objective with properties:
+            %            obj.density: density class handle with methods:
+            %                        obj.density.expectedValue
+            %                        obj.density.predict
+            %                        obj.density.update
+            %                        obj.density.predictedLikelihood
+            %                        obj.density.ellipsoidalGating
+            %                        obj.density.momentMatching
+            %                        obj.density.mixtureReduction
+            %            obj.gating.P_G: gating size in decimal --- scalar
+            %            obj.gating.size: gating size --- scalar
+            %            obj.hypothesis_reduction.wmin: allowed minimum hypothesis weight in logarithmic scale --- scalar
+            %            obj.hypothesis_reduction.merging_threshold: merging threshold --- scalar
+            %            obj.hypothesis_reduction.M: allowed maximum number of hypotheses --- scalar
+            %       states: structure array of size (1, number of objects) with two fields:
             %                x: object initial state mean --- (object state dimension) x 1 vector
             %                P: object initial state covariance --- (object state dimension) x (object state dimension) matrix
-            %       Z: cell array of size (total tracking time, 1), each cell
-            %          stores measurements of size (measurement dimension) x (number of measurements at corresponding time step)
-            %OUTPUT:estimates: cell array of size (total tracking time, 1), each cell stores estimated object state of size (object state dimension) x (number of objects)
-            
+            %       Z: cell array of size (total tracking time, 1), each cell stores measurements of size (measurement dimension) x (number of measurements at corresponding time step)
+            %       sensormodel: a structure specifies the sensor parameters
+            %           P_D: object detection probability --- scalar
+            %           lambda_c: average number of clutter measurements per time scan, Poisson distributed --- scalar
+            %           pdf_c: clutter (Poisson) intensity --- scalar
+            %       motionmodel: a structure specifies the motion model parameters
+            %           d: object state dimension --- scalar
+            %           F: function handle return transition/Jacobian matrix
+            %           f: function handle return predicted object state
+            %           Q: motion noise covariance matrix
+            %       measmodel: a structure specifies the measurement model parameters
+            %           d: measurement dimension --- scalar
+            %           H: function handle return transition/Jacobian matrix
+            %           h: function handle return the observation of the target state
+            %           R: measurement noise covariance matrix
+            %OUTPUT:estimates: cell array of size (total tracking time, 1), each cell stores estimated object states in matrix form of size (object state dimension) x (number of objects)
+            %DEPENDENCIES: singleobjecthypothesis.m
+            %              GaussianDensity.m
+            %              normalizeLogWeights.m
+            %              hypothesisReduction.m
+            %              kBest2DAssign.m
             
             n = length(states);
             K = length(Z);
@@ -125,7 +156,7 @@ classdef n_objectracker
                 %Obtain M best assignments using Murty's algorithm
                 [col4rowBest,~,gainBest]=kBest2DAssign(L,obj.hypothesis_reduction.M);
                 %Obtain M low cost assignments using Gibbs sampling
-%                 [col4rowBest,gainBest]= assign2DByGibbs(L,100,obj.hypothesis_reduction.M);
+                %                 [col4rowBest,gainBest]= assign2DByGibbs(L,100,obj.hypothesis_reduction.M);
                 
                 %Normalize hypothesis weight
                 normalizedWeight = normalizeLogWeights(-gainBest);
@@ -134,8 +165,9 @@ classdef n_objectracker
                 %Prune hypotheses with weight smaller than the specified threshold
                 [normalizedWeight, hypo_idx] = hypothesisReduction.prune(normalizedWeight,...
                     hypo_idx, obj.hypothesis_reduction.wmin);
-                col4rowBest = col4rowBest(:,hypo_idx);
+                %                 normalizedWeight = normalizeLogWeights(normalizedWeight);
                 
+                col4rowBest = col4rowBest(:,hypo_idx);
                 numHypothesis = length(normalizedWeight);
                 for i = 1:n
                     hypostates = repmat(states(i),[1,numHypothesis]);
@@ -155,12 +187,44 @@ classdef n_objectracker
         
         function estimates = TOMHT(obj, states, Z, sensormodel, motionmodel, measmodel)
             %TOMHT tracks n object using track-oriented multi-hypothesis tracking
-            %INPUT: state: structure array of size (1, number of objects) with two fields:
+            %INPUT: obj: a class objective with properties:
+            %            obj.density: density class handle with methods:
+            %                        obj.density.expectedValue
+            %                        obj.density.predict
+            %                        obj.density.update
+            %                        obj.density.predictedLikelihood
+            %                        obj.density.ellipsoidalGating
+            %                        obj.density.momentMatching
+            %                        obj.density.mixtureReduction
+            %            obj.gating.P_G: gating size in decimal --- scalar
+            %            obj.gating.size: gating size --- scalar
+            %            obj.hypothesis_reduction.wmin: allowed minimum hypothesis weight in logarithmic scale --- scalar
+            %            obj.hypothesis_reduction.merging_threshold: merging threshold --- scalar
+            %            obj.hypothesis_reduction.M: allowed maximum number of hypotheses --- scalar
+            %       states: structure array of size (1, number of objects) with two fields:
             %                x: object initial state mean --- (object state dimension) x 1 vector
             %                P: object initial state covariance --- (object state dimension) x (object state dimension) matrix
-            %       Z: cell array of size (total tracking time, 1), each cell
-            %          stores measurements of size (measurement dimension) x (number of measurements at corresponding time step)
-            %OUTPUT:estimates: cell array of size (total tracking time, 1), each cell stores estimated object state of size (object state dimension) x (number of objects)
+            %       Z: cell array of size (total tracking time, 1), each cell stores measurements of size (measurement dimension) x (number of measurements at corresponding time step)
+            %       sensormodel: a structure specifies the sensor parameters
+            %           P_D: object detection probability --- scalar
+            %           lambda_c: average number of clutter measurements per time scan, Poisson distributed --- scalar
+            %           pdf_c: clutter (Poisson) intensity --- scalar
+            %       motionmodel: a structure specifies the motion model parameters
+            %           d: object state dimension --- scalar
+            %           F: function handle return transition/Jacobian matrix
+            %           f: function handle return predicted object state
+            %           Q: motion noise covariance matrix
+            %       measmodel: a structure specifies the measurement model parameters
+            %           d: measurement dimension --- scalar
+            %           H: function handle return transition/Jacobian matrix
+            %           h: function handle return the observation of the target state
+            %           R: measurement noise covariance matrix
+            %OUTPUT:estimates: cell array of size (total tracking time, 1), each cell stores estimated object states in matrix form of size (object state dimension) x (number of objects)
+            %DEPENDENCIES: singleobjecthypothesis.m
+            %              GaussianDensity.m
+            %              normalizeLogWeights.m
+            %              hypothesisReduction.m
+            %              kBest2DAssign.m
             
             n = length(states);     %number of objects
             K = length(Z);          %total number of time steps
@@ -228,7 +292,7 @@ classdef n_objectracker
                     %Obtain M best assignments using Murty's algorithm
                     [col4rowBest,~,gainBest]=kBest2DAssign(L,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
                     %Obtain M low cost assignments using Gibbs sampling
-%                     [col4rowBest,gainBest]= assign2DByGibbs(L,100,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
+                    %                     [col4rowBest,gainBest]= assign2DByGibbs(L,100,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
                     
                     col4rowBest(col4rowBest>m) = 0;
                     globalHypoWeightUpd = [globalHypoWeightUpd;-gainBest+globalHypoWeight(h)];
@@ -251,6 +315,7 @@ classdef n_objectracker
                 [globalHypoWeight, hypo_idx] = hypothesisReduction.cap(globalHypoWeight, ...
                     hypo_idx, obj.hypothesis_reduction.M);
                 globalHypo = globalHypoUpd(hypo_idx,:);
+                globalHypoWeight = normalizeLogWeights(globalHypoWeight);
                 
                 %Prune local hypotheses
                 for i = 1:n

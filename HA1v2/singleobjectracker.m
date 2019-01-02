@@ -177,13 +177,16 @@ classdef singleobjectracker
                 [hypothesesWeight, multiHypotheses] = hypothesisReduction.prune(hypothesesWeight,...
                     multiHypotheses, obj.hypothesis_reduction.wmin);
                 
+                %Merge hypotheses within small enough Mahalanobis distance
+                [hypothesesWeight,multiHypotheses] = hypothesisReduction.merge...
+                    (hypothesesWeight,multiHypotheses,obj.hypothesis_reduction.merging_threshold,obj.density);
+                
                 %Keep at most M hypotheses with the highest weights
                 [hypothesesWeight, multiHypotheses] = hypothesisReduction.cap(hypothesesWeight, ...
                     multiHypotheses, obj.hypothesis_reduction.M);
                 
-                %Merge hypotheses within small enough Mahalanobis distance
-                [hypothesesWeight,multiHypotheses] = hypothesisReduction.merge...
-                    (hypothesesWeight,multiHypotheses,obj.hypothesis_reduction.merging_threshold,obj.density);
+                %Normalize hypotheses weights
+                [hypothesesWeight,~] = normalizeLogWeights(hypothesesWeight);
                 
                 %Extract object state from the hypothesis with the highest weight
                 [~,idx] = max(hypothesesWeight);

@@ -117,4 +117,6 @@ h2 = plot(GNN_estimated_state(1,:), GNN_estimated_state(2,:),'r+');
 h3 = plot(JPDA_estimated_state(1,:), JPDA_estimated_state(2,:),'mx');
 h4 = plot(TOMHT_estimated_state(1,:), TOMHT_estimated_state(2,:),'g*');
 
+xlabel('x'); ylabel('y')
+
 legend([h1 h2 h3 h4],'Ground Truth','GNN','JPDA','TOMHT', 'Location', 'best')
