@@ -107,7 +107,7 @@ classdef GaussianDensity
         
         function state = momentMatching(w, states)
             %MOMENTMATCHING: approximate a Gaussian mixture density as a single Gaussian using moment matching
-            %INPUT: w: normalised weight of Gaussian components in logarithm domain --- (number of Gaussians) x 1 vector
+            %INPUT: w: weights of Gaussian components in logarithm domain --- (number of Gaussians) x 1 vector
             %       states: structure array of size (number of Gaussian components x 1), each structure has two fields
             %               x: means of Gaussian components --- (variable dimension) x (number of Gaussians) matrix
             %               P: variances of Gaussian components --- (variable dimension) x (variable dimension) x (number of Gaussians) matrix

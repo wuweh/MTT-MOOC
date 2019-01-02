@@ -9,10 +9,10 @@ dbstop if error
 %Choose object detection probability
 P_D = 0.98;
 %Choose clutter rate
-lambda_c = 10;
+lambda_c = 60;
 
 %Choose linear or nonlinear scenario
-scenario_type = 'nonlinear';
+scenario_type = 'linear';
 
 %% Create tracking scenario
 switch(scenario_type)
