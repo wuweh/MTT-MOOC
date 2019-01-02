@@ -5,7 +5,7 @@ dbstop if error
 %Choose object detection probability
 P_D = 0.98;
 %Choose clutter rate
-lambda_c = 60;
+lambda_c = 5;
 %Choose object survival probability
 P_S = 0.99;
 
@@ -88,7 +88,7 @@ measdata = measdatagen(objectdata,sensor_model,meas_model);
 
 %% Object tracker parameter setting
 P_G = 0.999;            %gating size in percentage
-wmin = 1e-5;            %hypothesis pruning threshold
+wmin = 1e-3;            %hypothesis pruning threshold
 merging_threshold = 4;  %hypothesis merging threshold
 M = 100;                %maximum number of hypotheses kept in PHD
 density_class_handle = @GaussianDensity;    %density class handle

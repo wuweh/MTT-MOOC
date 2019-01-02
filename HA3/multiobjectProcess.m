@@ -2,19 +2,20 @@ classdef multiobjectProcess
     %MULTIOBJECTPROCESS is a class used to draw samples from RFSs
     %PROPERTIES: 
     %spatial_distribution: a struct with two fields:
-    %   name: a string specifing a spatial distribution by its name, 'u'-- uniform
-    %         distribution, 'g' -- Gaussian distribution, 'gm' -- Gaussian
-    %         mixture distribution
-    %   paras: a cell array/matrix storing spatial distribution parameters
+    %   name: a string specifing a spatial distribution by its name
+    %   paras: a cell array storing spatial distribution parameters:
     %          uniform distribution, size (1 x i): interval 
     %          Gaussian distribution, size (2 x i): mean and covariance
     %          Gaussian mixture, size (3 x i): means, covariances and mixing proportions
     %          i: number of RFS components, e.g., Poisson and Bernoulli, i = 1, 
-    %             multi-Bernoulli and multi-Bernoulli mixture, 
-    %             i = number of Bernoulli components
+    %             multi-Bernoulli and multi-Bernoulli mixture, i = number of Bernoulli components
     %RFS_type: a string specifying the type of RFS, e.g., 'Poisson', 'Bernoulli'
     %card_pmf: a function handle that returns the cardinality probability 
     %          mass function of the cardinality of some RFS with the given support.
+    
+    %NOTE: one can use prod(1-r)*poly(-r./(1-r)) to calculate the
+    %cardinality pmf of a multi-Bernoulli process with length(r) number of
+    %Bernoulli component; the ith Bernoulli has parameter r(i).
     
     properties
         spatial_distribution
@@ -29,18 +30,18 @@ classdef multiobjectProcess
             %INPUT: inputArg1, inputArg2, inputArg3: input arguments
             switch nargin
                 case 2
-                    obj.spatial_distribution.name = 'u';
+                    obj.spatial_distribution.name = 'uniform';
                     for i = 1:length(inputArg1)
                         obj.spatial_distribution.paras{1}{i} = inputArg1{i};
                     end
                 case 3
-                    obj.spatial_distribution.name = 'g';
+                    obj.spatial_distribution.name = 'Gaussian';
                     for i = 1:length(inputArg1)
                         obj.spatial_distribution.paras{1}{i} = inputArg1{i};
                         obj.spatial_distribution.paras{2}{i} = inputArg2{i};
                     end
                 case 4
-                    obj.spatial_distribution.name = 'gm';
+                    obj.spatial_distribution.name = 'Gaussian mixture';
                     for i = 1:length(inputArg1)
                         obj.spatial_distribution.paras{1}{i} = inputArg1{i};
                         obj.spatial_distribution.paras{2}{i} = inputArg2{i};
@@ -57,33 +58,53 @@ classdef multiobjectProcess
             stem(support,obj.card_pmf(support))
             xlabel('Cardinality')
             ylabel('Probability')
-            title('Cardinality distribution')
+            title_str = ['Cardinality PMF of a ', obj.RFS_type, ' RFS with ', ...
+                obj.spatial_distribution.name, ' PDF'];
+            title(title_str)
         end
         
         function instance = drawSamples(obj,idxParas,v)
             %DRAWSAMPLES draw samples from the given spatial distribution
-            %INPUT: idxParas: index of parameters used to specify the
+            %INPUT: idxParas: index of the parameters used to specify the
             %                 spatial distribution --- scalar
             %       v: number of samples to be drawn --- scalar
             %OUTPUT:instance: drawn samples of size (d, v), d: dimension
             %                 of the spatial distribution
             switch obj.spatial_distribution.name
-                case 'u'
+                case 'uniform'
                     dim = size(obj.spatial_distribution.paras{1}{idxParas},1);
                     instance = zeros(dim,v);
                     for i = 1:dim
-                        instance(i,:) = unifrnd(obj.spatial_distribution.paras{1}{idxParas}(i,1),obj.spatial_distribution.paras{1}{idxParas}(i,2),1,v);
+                        instance(i,:) = unifrnd(obj.spatial_distribution.paras{1}{idxParas}(i,1),...
+                            obj.spatial_distribution.paras{1}{idxParas}(i,2),1,v);
                     end
-                case 'g'
-                    instance = mvnrnd(obj.spatial_distribution.paras{1}{idxParas},obj.spatial_distribution.paras{2}{idxParas},v)';
-                case 'gm'
-                    gm = gmdistribution(obj.spatial_distribution.paras{1}{idxParas},obj.spatial_distribution.paras{2}{idxParas},obj.spatial_distribution.paras{3}{idxParas});
+                case 'Gaussian'
+                    instance = mvnrnd(obj.spatial_distribution.paras{1}{idxParas},...
+                        obj.spatial_distribution.paras{2}{idxParas},v)';
+                case 'Gaussian mixture'
+                    gm = gmdistribution(obj.spatial_distribution.paras{1}{idxParas},...
+                        obj.spatial_distribution.paras{2}{idxParas},obj.spatial_distribution.paras{3}{idxParas});
                     if v == 0
                         instance = [];
                     else
                         instance = random(gm,v)';
                     end
             end
+        end
+        
+        function instance2Dplot(obj,instance)
+            %INSTANCE2DPLOT creates a scatter plot of samples instances
+            %NOTE: this function only supports 2D distributions
+            figure
+            if ~isempty(instance)
+                plot(instance(1,:),instance(2,:),'o','LineWidth',2,'MarkerSize',5)
+                grid on
+            end
+            xlabel('x')
+            ylabel('y')
+            title_str = ['Samples of a ', obj.RFS_type, ' RFS with ', ...
+                obj.spatial_distribution.name, ' PDF'];
+            title(title_str)
         end
         
         function [obj, instance] = PoissonRFSs(obj,lambda)
@@ -150,10 +171,10 @@ classdef multiobjectProcess
             %          each cell contains a vector of size (number of Bernoulli components x 1)
             %OUTPUT:instance: sample instances of size (d, v), d: dimension
             %                 of the spatial distribution, v: number of samples
-            
-            %For convenience, here we assume that Bernoulli component with
+            %For input convenience, here we assume that Bernoulli component with
             %the same index in different multi-Bernoulli has the same pdf
             %but probability of existence
+            
             obj.RFS_type = 'Multi-Bernoulli mixture';
             M = cellfun('length',r);
 
@@ -170,6 +191,7 @@ classdef multiobjectProcess
             for i = 1:num_mb
                 lr1 = length(find(r{i}==1));
                 r{i} = r{i}(r{i}~=1);
+                %append zeros to make each multi-Bernoulli's cardinality pmf have equal support
                 pcard(i,:) = [zeros(1,lr1) prod(1-r{i})*poly(-r{i}./(1-r{i})) zeros(1,max(M)-M(i))];
             end
             if size(p,1) > 1
@@ -193,19 +215,6 @@ classdef multiobjectProcess
                     pmf(i) = pcard(pf(i)+1);
                 end
             end
-        end
-        
-        function instance2Dplot(instance)
-            %INSTANCE2DPLOT creates a scatter plot of samples instances
-            %ONLY SUPPORT 2D DISTRIBUTIONS
-            figure
-            if ~isempty(instance)
-                plot(instance(1,:),instance(2,:),'o','LineWidth',2,'MarkerSize',5)
-                grid on
-            end
-            xlabel('x')
-            ylabel('y')
-            title('Samples')
         end
         
     end
