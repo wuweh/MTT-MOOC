@@ -74,7 +74,6 @@ classdef PoissonRFS
                 w_temp = normalizeLogWeights(w_temp);
                 w(j,meas_in_gate_per_object(j,:)) = w_temp(1:end-1);
             end
-
             for i = 1:n
                 w_upd = [w_upd;w(meas_in_gate_per_object(:,i),i)];
             end
@@ -116,14 +115,6 @@ classdef PoissonRFS
         function estimates = stateExtraction(obj)
             %STATEEXTRACTION extracts estimation from PPP intensity
             estimates = [];
-%             n = round(sum(exp(obj.paras.w)));
-%             if n > 0
-%                 [~,I] = sort(obj.paras.w,'descend');
-%                 for j = 1:n
-%                     state = obj.density.expectedValue(obj.paras.states(I(j)));
-%                     estimates = [estimates state];
-%                 end
-%             end
 
             idx = find(obj.paras.w > log(0.5));
             if ~isempty(idx)
@@ -138,6 +129,15 @@ classdef PoissonRFS
 %                 for j = 1:length(idx)
 %                     repeat_num_targets= round(exp(obj.paras.w(idx(j))));
 %                     state = repmat(obj.density.expectedValue(obj.paras.states(idx(j))),[1,repeat_num_targets]);
+%                     estimates = [estimates state];
+%                 end
+%             end
+
+%             n = round(sum(exp(obj.paras.w)));
+%             if n > 0
+%                 [~,I] = sort(obj.paras.w,'descend');
+%                 for j = 1:n
+%                     state = obj.density.expectedValue(obj.paras.states(I(j)));
 %                     estimates = [estimates state];
 %                 end
 %             end

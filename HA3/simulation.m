@@ -74,9 +74,9 @@ switch(scenario_type)
         birth_model = repmat(struct('w',0.01,'x',[],'P',100*diag([1 1 1 1*pi/90 1*pi/90].^2)),[1,nbirths]);
         
         birth_model(1).x = [0; 0; 5; 0; pi/180];       tbirth(1) = 1;   tdeath(1) = 50;
-        birth_model(2).x = [20; 20; -20; 0; pi/90];    tbirth(2) = 21;  tdeath(2) = 70;
-        birth_model(3).x = [-20; 10; -10; 0; pi/360];  tbirth(3) = 41;  tdeath(3) = 90;
-        birth_model(4).x = [-10; -10; 8; 0; pi/270];   tbirth(4) = 61;  tdeath(4) = K;
+        birth_model(2).x = [20; 20; -20; 0; pi/90];    tbirth(2) = 20;  tdeath(2) = 70;
+        birth_model(3).x = [-20; 10; -10; 0; pi/360];  tbirth(3) = 40;  tdeath(3) = 90;
+        birth_model(4).x = [-10; -10; 8; 0; pi/270];   tbirth(4) = 60;  tdeath(4) = K;
 
 end
 

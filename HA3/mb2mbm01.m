@@ -7,7 +7,7 @@ function [w,mbm_r,mbm_pdf] = mb2mbm01(mb_r,mb_pdf)
 %               of Bernoulli components x 1).
 %OUTPUT:w: weights of multi-Bernoulli components in the multi-Bernoulli
 %               mixture --- vector of size (number of multi-Bernoulli 
-%               components). (SUM UP TO ONE).
+%               components). 
 %       mbm_r: probability of existence --- cell of size (number of
 %               multi-Bernoulli components x 1). Each cell contains a
 %               vector of size (number of Bernoulli components x 1).
@@ -15,8 +15,8 @@ function [w,mbm_r,mbm_pdf] = mb2mbm01(mb_r,mb_pdf)
 %               of multi-Bernoulli components x 1). Each cell contains a 
 %               struct of size (number of Bernoulli components x 1).
 
-%NOTE: if a Bernoulli process has probability of existence r = 0, it is
-%then not represented in the multi-Bernoulli process.
+%NOTE: 1. If a Bernoulli process has probability of existence r = 0, it is
+%then not represented in the multi-Bernoulli process. 2. w sums up to one.
 
 %Put Bernoulli components with probability of existence r = 1 aside
 idx1 = mb_r == 1;
