@@ -116,14 +116,15 @@ classdef PoissonRFS
             %STATEEXTRACTION extracts estimation from PPP intensity
             estimates = [];
 
-            idx = find(obj.paras.w > log(0.5));
-            if ~isempty(idx)
-                for j = 1:length(idx)
-                    state = obj.density.expectedValue(obj.paras.states(idx(j)));
-                    estimates = [estimates state];
-                end
-            end
+%             idx = find(obj.paras.w > log(0.5));
+%             if ~isempty(idx)
+%                 for j = 1:length(idx)
+%                     state = obj.density.expectedValue(obj.paras.states(idx(j)));
+%                     estimates = [estimates state];
+%                 end
+%             end
             
+            %implementation suggested in Ba-Vo's GM-PHD paper
 %             idx = find(obj.paras.w > log(0.5));
 %             if ~isempty(idx)
 %                 for j = 1:length(idx)
@@ -133,14 +134,16 @@ classdef PoissonRFS
 %                 end
 %             end
 
-%             n = round(sum(exp(obj.paras.w)));
-%             if n > 0
-%                 [~,I] = sort(obj.paras.w,'descend');
-%                 for j = 1:n
-%                     state = obj.density.expectedValue(obj.paras.states(I(j)));
-%                     estimates = [estimates state];
-%                 end
-%             end
+            %obtain the estimated cardinality mean
+            n = round(sum(exp(obj.paras.w)));
+            %extract object states from the n components with the highest weights
+            if n > 0
+                [~,I] = sort(obj.paras.w,'descend');
+                for j = 1:n
+                    state = obj.density.expectedValue(obj.paras.states(I(j)));
+                    estimates = [estimates state];
+                end
+            end
         end
         
     end
