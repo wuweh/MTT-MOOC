@@ -9,7 +9,7 @@ dbstop if error
 %Choose object detection probability
 P_D = 0.98;
 %Choose clutter rate
-lambda_c = 60;
+lambda_c = 10;
 
 %Choose linear or nonlinear scenario
 scenario_type = 'linear';
@@ -85,7 +85,7 @@ measdata = measdatagen(objectdata,sensor_model,meas_model);
 P_G = 0.999;            %gating size in percentage
 wmin = 1e-3;            %hypothesis pruning threshold
 merging_threshold = 4;  %hypothesis merging threshold
-M = 20;                %maximum number of hypotheses kept in MHT
+M = 5;                %maximum number of hypotheses kept in MHT
 density_class_handle = @GaussianDensity;    %density class handle
 tracker = n_objectracker();
 tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_threshold,M);

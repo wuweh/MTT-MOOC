@@ -114,6 +114,8 @@ classdef PoissonRFS
         
         function estimates = stateExtraction(obj)
             %STATEEXTRACTION extracts estimation from PPP intensity
+            %OUTPUT: estimates: estimated object states in matrix form of 
+            %                   size (object state dimension) x (number of objects)
             estimates = [];
 
 %             idx = find(obj.paras.w > log(0.5));

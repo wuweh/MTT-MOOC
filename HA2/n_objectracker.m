@@ -154,19 +154,22 @@ classdef n_objectracker
                 L2(logical(eye(n))) = -(singleobjecthypothesis.undetected(sensormodel.P_D,obj.gating.P_G)+log(sensormodel.lambda_c)+log(sensormodel.pdf_c))*ones(n,1);
                 L = [L1 L2];
                 %Obtain M best assignments using Murty's algorithm
-                [col4rowBest,~,gainBest]=kBest2DAssign(L,obj.hypothesis_reduction.M);
+%                 [col4rowBest,~,gainBest]=kBest2DAssign(L,obj.hypothesis_reduction.M);
                 %Obtain M low cost assignments using Gibbs sampling
-                %                 [col4rowBest,gainBest]= assign2DByGibbs(L,100,obj.hypothesis_reduction.M);
+                [col4rowBest,gainBest]= assign2DByGibbs(L,100,obj.hypothesis_reduction.M);
                 
                 %Normalize hypothesis weight
                 normalizedWeight = normalizeLogWeights(-gainBest);
                 
-                hypo_idx = 1:length(normalizedWeight);
                 %Prune hypotheses with weight smaller than the specified threshold
+                hypo_idx = 1:length(normalizedWeight);
                 [normalizedWeight, hypo_idx] = hypothesisReduction.prune(normalizedWeight,...
                     hypo_idx, obj.hypothesis_reduction.wmin);
-                %                 normalizedWeight = normalizeLogWeights(normalizedWeight);
                 
+                %Normalize hypothesis weight
+                normalizedWeight = normalizeLogWeights(normalizedWeight);
+                
+                %Create new hypothesis according to the k-best assignments
                 col4rowBest = col4rowBest(:,hypo_idx);
                 numHypothesis = length(normalizedWeight);
                 for i = 1:n
@@ -241,9 +244,7 @@ classdef n_objectracker
             for k = 1:K
                 m = size(Z{k},2);   %number of measurements at time step k
                 %predict for each single object hypothesis for each object
-                for i = 1:n
-                    hypoTable{i} = arrayfun(@(x) obj.density.predict(x, motionmodel), hypoTable{i});
-                end
+                hypoTable = cellfun(@(y) arrayfun(@(x) obj.density.predict(x, motionmodel), y),hypoTable,'UniformOutput',false);
                 
                 %initialize likelihood table and updated single object hypothesis table
                 likTable = cell(n,1);
@@ -290,9 +291,9 @@ classdef n_objectracker
                     end
                     L = [L1 L2];
                     %Obtain M best assignments using Murty's algorithm
-                    [col4rowBest,~,gainBest]=kBest2DAssign(L,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
+%                     [col4rowBest,~,gainBest]=kBest2DAssign(L,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
                     %Obtain M low cost assignments using Gibbs sampling
-                    %                     [col4rowBest,gainBest]= assign2DByGibbs(L,100,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
+                    [col4rowBest,gainBest]= assign2DByGibbs(L,100,ceil(exp(globalHypoWeight(h))*obj.hypothesis_reduction.M));
                     
                     col4rowBest(col4rowBest>m) = 0;
                     globalHypoWeightUpd = [globalHypoWeightUpd;-gainBest+globalHypoWeight(h)];
@@ -307,23 +308,28 @@ classdef n_objectracker
                 
                 %Normalize global hypothesis weights
                 globalHypoWeight = normalizeLogWeights(globalHypoWeightUpd);
-                hypo_idx = 1:num_new_hypo;
+                
                 %Prune hypotheses with weight smaller than the specified threshold
+                hypo_idx = 1:num_new_hypo;
                 [globalHypoWeight, hypo_idx] = hypothesisReduction.prune(globalHypoWeight,...
                     hypo_idx, obj.hypothesis_reduction.wmin);
+                globalHypoUpd = globalHypoUpd(hypo_idx,:);
+                globalHypoWeight = normalizeLogWeights(globalHypoWeight);
+                
                 %Keep at most M hypotheses with the highest weights
+                hypo_idx = 1:length(globalHypoWeight);
                 [globalHypoWeight, hypo_idx] = hypothesisReduction.cap(globalHypoWeight, ...
                     hypo_idx, obj.hypothesis_reduction.M);
                 globalHypo = globalHypoUpd(hypo_idx,:);
                 globalHypoWeight = normalizeLogWeights(globalHypoWeight);
                 
-                %Prune local hypotheses
+                %Prune local hypotheses that not appear in maintained global hypotheses
                 for i = 1:n
                     hypoTableTemp = hypoTableUpd{i}(unique(globalHypo(:,i)));
                     hypoTable{i} = [hypoTableTemp{:}];
                 end
                 
-                %Clean track table
+                %Clean hypothesis table
                 for i = 1:n
                     [~,~,globalHypo(:,i)] = unique(globalHypo(:,i),'rows');
                 end

@@ -112,6 +112,13 @@ classdef singleobjectracker
                     %Normalise likelihoods
                     [mu,~] = normalizeLogWeights(mu);
                     
+                    %Prune hypothesis with small weights
+                    [mu, hypothesized_state] = hypothesisReduction.prune(mu,...
+                    hypothesized_state, obj.hypothesis_reduction.wmin);
+                
+                    %Re-normalise likelihoods
+                    [mu,~] = normalizeLogWeights(mu);
+                    
                     %Merging
                     state = obj.density.momentMatching(mu, hypothesized_state);
                     %Free memory
@@ -177,9 +184,15 @@ classdef singleobjectracker
                 [hypothesesWeight, multiHypotheses] = hypothesisReduction.prune(hypothesesWeight,...
                     multiHypotheses, obj.hypothesis_reduction.wmin);
                 
+                %Normalize hypotheses weights
+                [hypothesesWeight,~] = normalizeLogWeights(hypothesesWeight);
+                
                 %Merge hypotheses within small enough Mahalanobis distance
                 [hypothesesWeight,multiHypotheses] = hypothesisReduction.merge...
                     (hypothesesWeight,multiHypotheses,obj.hypothesis_reduction.merging_threshold,obj.density);
+                
+                %Normalize hypotheses weights
+                [hypothesesWeight,~] = normalizeLogWeights(hypothesesWeight);
                 
                 %Keep at most M hypotheses with the highest weights
                 [hypothesesWeight, multiHypotheses] = hypothesisReduction.cap(hypothesesWeight, ...
