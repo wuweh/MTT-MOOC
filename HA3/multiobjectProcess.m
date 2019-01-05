@@ -98,6 +98,7 @@ classdef multiobjectProcess
             figure
             if ~isempty(instance)
                 plot(instance(1,:),instance(2,:),'o','LineWidth',2,'MarkerSize',5)
+                legend('Samples')
                 grid on
             end
             xlabel('x')
@@ -154,12 +155,9 @@ classdef multiobjectProcess
             instance = cell2mat(instance');
             
             %calculate the cardinality pmf of a multi-Bernoulli RFS
-            if size(r,1) > 1
-                r = r';
-            end
             lr1 = length(find(r==1));
             r = r(r~=1);
-            pcard = [zeros(1,lr1) prod(1-r)*poly(-r./(1-r))];
+            pcard = [zeros(lr1,1);prod(1-r)*poly(-r./(1-r))];
             obj.card_pmf = @(x) multiobjectProcess.createPMF(pcard,x);
 
         end
