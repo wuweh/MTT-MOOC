@@ -58,8 +58,7 @@ classdef multiobjectProcess
             stem(support,obj.card_pmf(support))
             xlabel('Cardinality')
             ylabel('Probability')
-            title_str = ['Cardinality PMF of a ', obj.RFS_type, ' RFS with ', ...
-                obj.spatial_distribution.name, ' PDF'];
+            title_str = ['Cardinality PMF of a ', obj.RFS_type, ' RFS'];
             title(title_str)
         end
         
