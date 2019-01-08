@@ -1,5 +1,5 @@
-classdef PoissonRFS
-    %POISSONRFS is a class containing necessary functions to implement the PHD filter
+classdef PHDfilter
+    %PHDFILTER is a class containing necessary functions to implement the PHD filter
     %DEPENDENCIES: singleobjecthypothesis.m
     %              GaussianDensity.m
     %              normalizeLogWeights.m
@@ -12,7 +12,7 @@ classdef PoissonRFS
     
     methods
         function obj = initialize(obj,density_class_handle,birthmodel)
-            %INITIATOR initializes PoissonRFS class
+            %INITIATOR initializes PHDfilter class
             %INPUT: density_class_handle: density class handle
             %       birthmodel: a struct specifying the intensity (mixture) of a PPP birth model
             %OUTPUT:obj.density: density class handle
@@ -37,7 +37,7 @@ classdef PoissonRFS
         end
         
         function obj = update(obj,z,measmodel,sensormodel,gating)
-            %Undetected performs PPP update step
+            %UPDATE performs PPP update step and PPP approximation
             %INPUT: gating: a struct with two fields: P_G, size used to
             %               specify the gating parameters
             
@@ -68,7 +68,10 @@ classdef PoissonRFS
                     w(meas_in_gate_per_object(:,i),i) = w(meas_in_gate_per_object(:,i),i) + obj.paras.w(i);
                 end
             end
-            %normalise weights of mixture components resulted from being updated by the same measurement
+            %normalise weights of mixture components resulted from being
+            %updated by the same measurement. Without PPP approximation, w
+            %resulted from measurement update can be regarded as the
+            %probability of existence of Bernoulli components.
             for j = 1:m
                 w_temp = [w(j,meas_in_gate_per_object(j,:)) log(sensormodel.lambda_c)+log(sensormodel.pdf_c)];
                 w_temp = normalizeLogWeights(w_temp);
@@ -136,7 +139,7 @@ classdef PoissonRFS
 %                 end
 %             end
 
-            %obtain the estimated cardinality mean
+            %obtain the estimated cardinality mean. The estimation error is small if P_D is close to one.
             n = round(sum(exp(obj.paras.w)));
             %extract object states from the n components with the highest weights
             if n > 0

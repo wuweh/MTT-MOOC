@@ -61,7 +61,7 @@ classdef multiobjectracker
             estimates = cell(K,1);
             
             %Create a class instance
-            PPP = PHDfilter();
+            PPP = PoissonRFS();
             %Initialize the PPP
             PPP = initialize(PPP,obj.density,birthmodel);
             
