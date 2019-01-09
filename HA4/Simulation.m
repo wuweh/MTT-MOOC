@@ -96,7 +96,10 @@ tracker = multiobjectracker();
 tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_threshold,M);
 
 %% GM-PHD filter
-GMPHDestimates = GMPHDtracker(tracker, birth_model, measdata, sensor_model, motion_model, meas_model);
+% GMPHDestimates = GMPHDtracker(tracker, birth_model, measdata, sensor_model, motion_model, meas_model);
+
+%% PMBM filter
+PMBMestimates = PMBMtracker(tracker, birth_model, measdata, sensor_model, motion_model, meas_model);
 
 %% Ploting
 %Trajectory plot
@@ -104,10 +107,12 @@ figure
 hold on
 
 true_state = cell2mat(objectdata.X');
-GMPHD_estimated_state = cell2mat(GMPHDestimates');
+% GMPHD_estimated_state = cell2mat(GMPHDestimates');
+PMBM_estimated_state = cell2mat(PMBMestimates');
 
 h1 = plot(true_state(1,:), true_state(2,:), 'bo');
-h2 = plot(GMPHD_estimated_state(1,:), GMPHD_estimated_state(2,:),'r+');
+% h2 = plot(GMPHD_estimated_state(1,:), GMPHD_estimated_state(2,:),'r+');
+h2 = plot(PMBM_estimated_state(1,:), PMBM_estimated_state(2,:),'r+');
 
 xlabel('x'); ylabel('y')
 
@@ -118,14 +123,17 @@ figure
 grid on
 hold on
 true_cardinality = objectdata.N;
-GMPHD_estimated_cardinality = cellfun(@(x) size(x,2), GMPHDestimates);
+% GMPHD_estimated_cardinality = cellfun(@(x) size(x,2), GMPHDestimates);
+PMBM_estimated_cardinality = cellfun(@(x) size(x,2), PMBMestimates);
 
 h1 = plot(1:length(true_cardinality),true_cardinality,'bo','linewidth',2);
-h2 = plot(1:length(GMPHD_estimated_cardinality),GMPHD_estimated_cardinality,'r+','linewidth',2);
+% h2 = plot(1:length(GMPHD_estimated_cardinality),GMPHD_estimated_cardinality,'r+','linewidth',2);
+h2 = plot(1:length(PMBM_estimated_cardinality),PMBM_estimated_cardinality,'r+','linewidth',2);
 
 xlabel('Time step')
 ylabel('Cardinality')
-legend([h1 h2],'Ground Truth','PHD', 'Location', 'best')
+% legend([h1 h2],'Ground Truth','PHD', 'Location', 'best')
+legend([h1 h2],'Ground Truth','PMBM', 'Location', 'best')
 
 %GOSPA plot
 c = 100;
@@ -133,7 +141,8 @@ p = 1;
 gospa = zeros(K,4);
 for k = 1:K
     %Evaluate kinematics estimation performance using GOSPA metric
-    gospa(k,:) = GOSPAmetric(objectdata.X{k},GMPHDestimates{k},c,p);
+%     gospa(k,:) = GOSPAmetric(objectdata.X{k},GMPHDestimates{k},c,p);
+    gospa(k,:) = GOSPAmetric(objectdata.X{k},PMBMestimates{k},c,p);
 end
 
 figure

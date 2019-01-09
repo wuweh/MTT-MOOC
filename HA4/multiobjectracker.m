@@ -75,7 +75,39 @@ classdef multiobjectracker
                 %Extract state estimates from the PPP
                 estimates{k} = stateExtraction(PPP);
             end
-
+            
+        end
+        
+        function estimates = PMBMtracker(obj, birthmodel, Z, sensormodel, motionmodel, measmodel)
+            %PMBMTRACKER tracks multiple objects using Poisson multi-Bernoulli mixture filter
+            %INPUT: birthmodel: object birth model: structure array of size (1, number of hypothesised new born objects per time step) with three fields:
+            %                   w: object birth weight --- scalar
+            %                   x: object initial state mean --- (object state dimension) x 1 vector
+            %                   P: object initial state covariance --- (object state dimension) x (object state dimension) matrix
+            %       Z: cell array of size (total tracking time, 1), each cell
+            %          stores measurements of size (measurement dimension) x (number of measurements at corresponding time step)
+            %OUTPUT:estimates: cell array of size (total tracking time, 1), each cell stores estimated object state of size (object state dimension) x (number of objects)
+            
+            K = length(Z);
+            estimates = cell(K,1);
+            
+            %Create a class instance
+            PMBM = PMBMfilter();
+            %Initialize the PMBM
+            PMBM = initialize(PMBM,obj.density,birthmodel);
+            
+            for k = 1:K
+                %PMBM prediction
+                PMBM = PMBM_predict(PMBM,motionmodel,birthmodel,sensormodel);
+                %PMBM update
+                PMBM = PMBM_update(PMBM,Z{k},measmodel,sensormodel,obj.gating,obj.hypothesis_reduction.wmin,obj.hypothesis_reduction.M);
+                %Bernoulli components reduction
+                PMBM = Bern_prune(PMBM,1e-3);
+                %Recycling
+                PMBM = recycle(PMBM,1e-1,obj.hypothesis_reduction.merging_threshold);
+                %Object state extraction
+                estimates{k} = stateExtraction(PMBM);
+            end
         end
         
     end
