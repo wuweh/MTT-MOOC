@@ -34,7 +34,7 @@ switch(scenario_type)
         tbirth = zeros(nbirths,1);
         tdeath = zeros(nbirths,1);
         
-        birth_model = repmat(struct('w',0.03,'x',[],'P',100*eye(motion_model.d)),[1,nbirths]);
+        birth_model = repmat(struct('w',0.1,'x',[],'P',100*eye(motion_model.d)),[1,nbirths]);
         
         birth_model(1).x  = [ 0; 0; 0; -10 ];            tbirth(1)  = 1;     tdeath(1)  = 70;
         birth_model(2).x  = [ 400; -600; -10; 5 ];       tbirth(2)  = 1;     tdeath(2)  = K+1;
@@ -71,7 +71,7 @@ switch(scenario_type)
         nbirths = 4;
         K = 100;
         
-        birth_model = repmat(struct('w',0.01,'x',[],'P',100*diag([1 1 1 1*pi/90 1*pi/90].^2)),[1,nbirths]);
+        birth_model = repmat(struct('w',0.03,'x',[],'P',100*diag([1 1 1 1*pi/90 1*pi/90].^2)),[1,nbirths]);
         
         birth_model(1).x = [0; 0; 5; 0; pi/180];       tbirth(1) = 1;   tdeath(1) = 50;
         birth_model(2).x = [20; 20; -20; 0; pi/90];    tbirth(2) = 20;  tdeath(2) = 70;
