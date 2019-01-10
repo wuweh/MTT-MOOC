@@ -35,6 +35,17 @@ classdef PMBMfilter
             if isempty(obj.paras.MBM.ht)
                 obj.paras.MBM.w = [];
             end
+            
+            %Clean hypothesis table
+            n_tt = length(obj.paras.MBM.tt);
+            for i = 1:n_tt
+                idx = obj.paras.MBM.ht(:,i)==0;
+                [~,~,obj.paras.MBM.ht(:,i)] = unique(obj.paras.MBM.ht(:,i),'rows');
+                if any(idx)
+                    obj.paras.MBM.ht(idx,i) = 0;
+                    obj.paras.MBM.ht(~idx,i) = obj.paras.MBM.ht(~idx,i) - 1;
+                end
+            end
         end
         
         function obj = recycle(obj,recycle_threshold,merging_threshold)
@@ -44,8 +55,8 @@ classdef PMBMfilter
                 idx = arrayfun(@(x) x.r<recycle_threshold, obj.paras.MBM.tt{i});
                 %Recycle
                 temp = obj.paras.MBM.tt{i}(idx);
-                obj.paras.PPP.w = [obj.paras.PPP.w;[temp.r]];
-                obj.paras.PPP.states = [obj.paras.PPP.states;[temp.state]];
+                obj.paras.PPP.w = [obj.paras.PPP.w;[temp.r]'];
+                obj.paras.PPP.states = [obj.paras.PPP.states;[temp.state]'];
                 %Remove Bernoullis
                 obj.paras.MBM.tt{i} = obj.paras.MBM.tt{i}(~idx);
                 
@@ -61,6 +72,20 @@ classdef PMBMfilter
             idx = sum(obj.paras.MBM.ht)~=0;
             obj.paras.MBM.ht = obj.paras.MBM.ht(:,idx);
             obj.paras.MBM.tt = obj.paras.MBM.tt(idx);
+            if isempty(obj.paras.MBM.tt)
+                obj.paras.MBM.w = [];
+            end
+            
+            n_tt = length(obj.paras.MBM.tt);
+            %Clean hypothesis table
+            for i = 1:n_tt
+                idx = obj.paras.MBM.ht(:,i)==0;
+                [~,~,obj.paras.MBM.ht(:,i)] = unique(obj.paras.MBM.ht(:,i),'rows');
+                if any(idx)
+                    obj.paras.MBM.ht(idx,i) = 0;
+                    obj.paras.MBM.ht(~idx,i) = obj.paras.MBM.ht(~idx,i) - 1;
+                end
+            end
             
             [obj.paras.PPP.w,obj.paras.PPP.states] = obj.density.mixtureReduction(obj.paras.PPP.w,obj.paras.PPP.states,merging_threshold);
         end
@@ -81,8 +106,8 @@ classdef PMBMfilter
         
         function obj = PMBM_predict(obj,motionmodel,birthmodel,sensormodel)
             obj = PPP_predict(obj,motionmodel,birthmodel,sensormodel.P_S);
-            if ~isempty(obj.paras.MBM.tt)
-                obj.paras.MBM.tt = cellfun(@(y) arrayfun(@(x) Bern_predict(x,motionmodel,sensormodel.P_S), y), obj.paras.MBM.tt);
+            for i = 1:length(obj.paras.MBM.tt)
+                obj.paras.MBM.tt{i} = arrayfun(@(x) Bern_predict(obj,x,motionmodel,sensormodel.P_S), obj.paras.MBM.tt{i});
             end
         end
         
@@ -90,8 +115,9 @@ classdef PMBMfilter
             %Update detected objects
             m = size(z,2);                      %number of measurements received
             n_tt = length(obj.paras.MBM.tt);    %number of pre-existing tracks
+            n_tt_upd = n_tt + m;                %number of tracks
             likTable = cell(n_tt,1);            %initialise likelihood table, one for each track
-            hypoTable = cell(n_tt,1);           %initialise hypothesis table, one for each track
+            hypoTable = cell(n_tt_upd,1);       %initialise hypothesis table, one for each track
             for i = 1:n_tt
                 %number of hypotheses in track i
                 num_hypo = length(obj.paras.MBM.tt{i});
@@ -103,7 +129,8 @@ classdef PMBMfilter
                 hypoTable{i} = cell(num_hypo*(m+1),1);
                 for j = 1:num_hypo
                     %Perform gating for each single object hypothesis
-                    [~,gating_matrix_d(:,j)] = obj.density.ellipsoidalGating(obj.paras.MBM.tt{i}(j),z,measmodel,gating.size);
+                    Bern_temp = obj.paras.MBM.tt{i}(j);
+                    [~,gating_matrix_d(:,j)] = obj.density.ellipsoidalGating(Bern_temp.state,z,measmodel,gating.size);
                     %Missed detection
                     [hypoTable{i}{(j-1)*(m+1)+1},likTable{i}(j,1)] = Bern_undetected_update(obj,[i,j],sensormodel.P_D,gating.P_G);
                     %Update with measurement
@@ -111,28 +138,17 @@ classdef PMBMfilter
                         Bern_detected_update_lik(obj,[i,j],z(:,logical(gating_matrix_d(:,j))),measmodel,sensormodel.P_D);
                     for jj = 1:m
                         if gating_matrix_d(jj,j)
-                            hypoTable{i}{(j-1)*(m+1)+jj+1} = Bern_detected_update(obj,[i,j],z(:,jj),measmodel);
+                            hypoTable{i}{(j-1)*(m+1)+jj+1} = Bern_detected_update_state(obj,[i,j],z(:,jj),measmodel);
                         end
                     end
                 end
             end
             
             %Update undetected objects
-            nu = length(obj.paras.PPP.w);  %number of components in PPP
-            gating_matrix_u = false(m,nu);   %construct gating matrix
-            for i = 1:nu
-                %Perform gating for undetected objects
-                [~,gating_matrix_u(:,i)] = obj.density.ellipsoidalGating(obj.paras.PPP.states(i),z,measmodel,gating.size);
-            end
-            used_meas_idx_u = sum(gating_matrix_u,2) >= 1;  %indices of measurements inside the gate
-            gating_matrix_u = gating_matrix_u(used_meas_idx_u,:);
-            z_inPPPgate = z(:,used_meas_idx_u);           %measurements inside the gate
-            %Update undetected objects with measurements
-            mu = size(z_inPPPgate,2);                   %measurements inside the gate
-            lik_new = -inf(mu,1);
+            lik_new = -inf(m,1);
             %Create new tracks, one for each measurement inside the gate
-            for i = 1:mu
-                [hypoTable{n_tt+i,1}{1}, lik_new(i)] = PPP_detected_update(obj,gating_matrix_u(i,:),z_inPPPgate(:,i),measmodel,sensormodel.P_D,sensormodel.lambda_c);
+            for i = 1:m
+                [hypoTable{n_tt+i,1}{1}, lik_new(i)] = PPP_detected_update(obj,z(:,i),measmodel,sensormodel.P_D,sensormodel.lambda_c*sensormodel.pdf_c);
             end
             %Cost matrix for first detection of undetected objects
             L2 = inf(m);
@@ -140,11 +156,8 @@ classdef PMBMfilter
             
             %Update undetected objects with missed detection
             obj = PPP_undetected_update(obj,sensormodel.P_D,gating.P_G);
-            %Prune PPP components
-            obj = PPP_prune(obj,prune_threshold);
             
             %Update global hypothesis
-            n_tt_upd = n_tt + mu;   %number of tracks
             w_upd = -inf(0,1);             %initialise global hypothesis weight
             %initialise global hypothesis table, the (h,i)th single object
             %hypothesis in the ith track is included in the hth global
@@ -158,7 +171,7 @@ classdef PMBMfilter
                 %if there is no pre-existing track, create new track for each measurement
                 w_upd = 0;
                 H_upd = 1;
-                ht_upd = ones(1,mu);
+                ht_upd = ones(1,m);
             else
                 for h = 1:H
                     %Cost matrix for detected objects
@@ -179,10 +192,14 @@ classdef PMBMfilter
                         H_upd = H_upd + 1;
                         for i = 1:n_tt
                             idx = find(col4rowBest(:,j)==i, 1);
-                            if isempty(idx)
-                                ht_upd(H_upd,i) = (obj.paras.MBM.ht(h,i)-1)*(m+1)+1;
+                            if obj.paras.MBM.ht(h,i) == 0
+                                ht_upd(H_upd,i) = 0;
                             else
-                                ht_upd(H_upd,i) = (obj.paras.MBM.ht(h,i)-1)*(m+1)+idx+1;
+                                if isempty(idx)
+                                    ht_upd(H_upd,i) = (obj.paras.MBM.ht(h,i)-1)*(m+1)+1;
+                                else
+                                    ht_upd(H_upd,i) = (obj.paras.MBM.ht(h,i)-1)*(m+1)+idx+1;
+                                end
                             end
                         end
                         for i = n_tt+1:n_tt_upd
@@ -197,7 +214,7 @@ classdef PMBMfilter
             %Remove new created tracks that contain no single object hypotheses
             if ~isempty(ht_upd)
                 idx = sum(ht_upd,1)==0;
-                ht_upd = ht_upd(~idx);
+                ht_upd = ht_upd(:,~idx);
                 hypoTable = hypoTable(~idx);
             end
             
@@ -219,8 +236,9 @@ classdef PMBMfilter
             %Prune local hypotheses that not appear in maintained global hypotheses
             obj.paras.MBM.tt = cell(n_tt_upd,1);
             for i = 1:n_tt_upd
-                hypoTableTemp = hypoTable{i}(unique(ht_upd(:,i)));
-                obj.paras.MBM.tt{i} = [hypoTableTemp{:}];
+                temp = ht_upd(:,i);
+                hypoTableTemp = hypoTable{i}(unique(temp(temp~=0)));
+                obj.paras.MBM.tt{i} = [hypoTableTemp{:}]';
             end
             
             %Clean hypothesis table
@@ -241,7 +259,7 @@ classdef PMBMfilter
         %             Bern.state = obj.density.predict(Bern.state,motionmodel);
         %         end
         
-        function Bern = Bern_predict(Bern,motionmodel,P_S)
+        function Bern = Bern_predict(obj,Bern,motionmodel,P_S)
             Bern.r = Bern.r*P_S;
             Bern.state = obj.density.predict(Bern.state,motionmodel);
         end
@@ -266,23 +284,18 @@ classdef PMBMfilter
         end
         
         function obj = PPP_predict(obj,motionmodel,birthmodel,P_S)
-            obj.paras.PPP.w = [obj.paras.PPP.w;log([birthmodel.w]')];
-            obj.paras.PPP.states = [obj.paras.PPP.states;rmfield(birthmodel,'w')'];
             obj.paras.PPP.w = obj.paras.PPP.w + log(P_S);
             obj.paras.PPP.states = arrayfun(@(x) obj.density.predict(x,motionmodel), obj.paras.PPP.states);
-%             obj.paras.PPP.w = [obj.paras.PPP.w;log([birthmodel.w]')];
-%             obj.paras.PPP.states = [obj.paras.PPP.states;rmfield(birthmodel,'w')'];
+            obj.paras.PPP.w = [obj.paras.PPP.w;log([birthmodel.w]')];
+            obj.paras.PPP.states = [obj.paras.PPP.states;rmfield(birthmodel,'w')'];
         end
         
-        function [Bern, lik_new] = PPP_detected_update(obj,idx,z,measmodel,P_D,lambda_c)
-            PPP.w = obj.paras.PPP.w(idx);
-            PPP.states = obj.paras.PPP.states(idx);
-            
-            state_upd = arrayfun(@(x) obj.density.update(x,z,measmodel), PPP.states);
-            w_upd = arrayfun(@(x) obj.density.predictedLikelihood(x,z,measmodel), PPP.states) + PPP.w + log(P_D);
+        function [Bern, lik_new] = PPP_detected_update(obj,z,measmodel,P_D,clutter_intensity)
+            state_upd = arrayfun(@(x) obj.density.update(x,z,measmodel), obj.paras.PPP.states);
+            w_upd = arrayfun(@(x) obj.density.predictedLikelihood(x,z,measmodel), obj.paras.PPP.states) + obj.paras.PPP.w + log(P_D);
             C = sum(exp(w_upd));
-            lik_new = log(C + lambda_c);
-            Bern.r = C/(C + lambda_c);
+            lik_new = log(C + clutter_intensity);
+            Bern.r = C/(C + clutter_intensity);
             w_upd = normalizeLogWeights(w_upd);
             Bern.state = obj.density.momentMatching(w_upd,state_upd);
         end

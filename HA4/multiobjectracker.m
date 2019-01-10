@@ -103,6 +103,8 @@ classdef multiobjectracker
                 PMBM = PMBM_update(PMBM,Z{k},measmodel,sensormodel,obj.gating,obj.hypothesis_reduction.wmin,obj.hypothesis_reduction.M);
                 %Bernoulli components reduction
                 PMBM = Bern_prune(PMBM,1e-5);
+                %Prune PPP components
+                PMBM = PPP_prune(PMBM,obj.hypothesis_reduction.wmin);
                 %Recycling
                 PMBM = recycle(PMBM,1e-1,obj.hypothesis_reduction.merging_threshold);
                 %Object state extraction
