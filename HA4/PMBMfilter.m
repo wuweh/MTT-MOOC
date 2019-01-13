@@ -48,7 +48,7 @@ classdef PMBMfilter
             end
         end
         
-        function obj = recycle(obj,recycle_threshold,merging_threshold)
+        function obj = Bern_recycle(obj,recycle_threshold,merging_threshold)
             %Remove Bernoulli components with small probability of existence
             n_tt = length(obj.paras.MBM.tt);
             for i = 1:n_tt
@@ -69,7 +69,7 @@ classdef PMBMfilter
                 
             end
             %Remove tracks that contain no single object hypotheses
-            idx = sum(obj.paras.MBM.ht)~=0;
+            idx = sum(obj.paras.MBM.ht,1)~=0;
             obj.paras.MBM.ht = obj.paras.MBM.ht(:,idx);
             obj.paras.MBM.tt = obj.paras.MBM.tt(idx);
             if isempty(obj.paras.MBM.tt)
@@ -86,11 +86,12 @@ classdef PMBMfilter
                     obj.paras.MBM.ht(~idx,i) = obj.paras.MBM.ht(~idx,i) - 1;
                 end
             end
-            
-            [obj.paras.PPP.w,obj.paras.PPP.states] = obj.density.mixtureReduction(obj.paras.PPP.w,obj.paras.PPP.states,merging_threshold);
+            if ~isempty(obj.paras.PPP.w)
+                [obj.paras.PPP.w,obj.paras.PPP.states] = obj.density.mixtureReduction(obj.paras.PPP.w,obj.paras.PPP.states,merging_threshold);
+            end
         end
         
-        function estimates = stateExtraction(obj)
+        function estimates = PMBM_estimator1(obj)
             estimates = [];
             [~,I] = max(obj.paras.MBM.w);
             h_best = obj.paras.MBM.ht(I,:);
@@ -104,6 +105,60 @@ classdef PMBMfilter
             end
         end
         
+        function estimates = PMBM_estimator2(obj)
+            estimates = [];
+            num_mb = length(obj.paras.MBM.w);
+            r = cell(num_mb,1);
+            for i = 1:num_mb
+                ht = obj.paras.MBM.ht(i,:);
+                for j = 1:length(ht)
+                    if ht(j)~=0
+                        Bern = obj.paras.MBM.tt{j}(ht(j));
+                        r{i} = [r{i};Bern.r];
+                    end
+                end
+            end
+            M = cellfun('length',r);
+            pcard = zeros(num_mb,max(M)+1);
+            %calculate the cardinality pmf for each multi-Bernoulli RFS
+            for i = 1:num_mb
+                lr1 = length(find(r{i}==1));
+                temp = r{i}(r{i}~=1);
+                %append zeros to make each multi-Bernoulli's cardinality pmf have equal support
+                pcard(i,:) = [zeros(1,lr1) prod(1-temp)*poly(-temp./(1-temp)) zeros(1,max(M)-M(i))];
+            end
+            %calculate the cardinality pmf of the multi-Bernoulli mixture
+            pcard = sum(pcard.*exp(obj.paras.MBM.w),1);
+            [~,I] = max(pcard);
+            C_max = I - 1;
+            % for each MB hypothesis in the MBM, find the MAP cardinality estimate
+            idx = M >= C_max;
+            w = obj.paras.MBM.w(idx);
+            r = r(idx);
+            ht = obj.paras.MBM.ht(idx,:);
+            num_mb = length(w);
+            w_deter = zeros(num_mb,1);
+            for i = 1:num_mb
+                r_sort = sort(r{i},'descend');
+                w_deter(i) = w(i)*prod(r_sort(1:C_max));
+                if length(r{i}) > C_max
+                    w_deter(i) = w_deter(i)*prod(1-r_sort(C_max+1:end));
+                end
+            end
+            [~,J] = max(w_deter);
+            h_best = ht(J,:);
+            r = [];
+            for i = 1:length(h_best)
+                if h_best(i)~=0
+                    Bern = obj.paras.MBM.tt{i}(h_best(i));
+                    r = [r Bern.r];
+                    estimates = [estimates obj.density.expectedValue(Bern.state)];
+                end
+            end
+            [~,I] = sort(r,'descend');
+            estimates = estimates(:,I(1:C_max));
+        end
+        
         function obj = PMBM_predict(obj,motionmodel,birthmodel,sensormodel)
             obj = PPP_predict(obj,motionmodel,birthmodel,sensormodel.P_S);
             for i = 1:length(obj.paras.MBM.tt)
@@ -111,7 +166,7 @@ classdef PMBMfilter
             end
         end
         
-        function obj = PMBM_update(obj,z,measmodel,sensormodel,gating,prune_threshold,M)
+        function obj = PMBM_update(obj,z,measmodel,sensormodel,gating,wmin,M)
             %Update detected objects
             m = size(z,2);                      %number of measurements received
             n_tt = length(obj.paras.MBM.tt);    %number of pre-existing tracks
@@ -224,7 +279,7 @@ classdef PMBMfilter
             
             %Prune hypotheses with weight smaller than the specified threshold
             hypo_idx = 1:H_upd;
-            [w_upd, hypo_idx] = hypothesisReduction.prune(w_upd,hypo_idx,prune_threshold);
+            [w_upd, hypo_idx] = hypothesisReduction.prune(w_upd,hypo_idx,wmin);
             ht_upd = ht_upd(hypo_idx,:);
             w_upd = normalizeLogWeights(w_upd);
             
@@ -251,15 +306,8 @@ classdef PMBMfilter
                     ht_upd(~idx,i) = ht_upd(~idx,i) - 1;
                 end
             end
-            
             obj.paras.MBM.ht = ht_upd;
         end
-        
-        %         function Bern = Bern_predict(obj,tt_entry,motionmodel,P_S)
-        %             Bern = obj.paras.MBM.tt{tt_entry(1)}(tt_entry(2));
-        %             Bern.r = Bern.r*P_S;
-        %             Bern.state = obj.density.predict(Bern.state,motionmodel);
-        %         end
         
         function Bern = Bern_predict(obj,Bern,motionmodel,P_S)
             Bern.r = Bern.r*P_S;

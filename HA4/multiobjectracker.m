@@ -25,7 +25,7 @@ classdef multiobjectracker
     
     methods
         
-        function obj = initialize(obj,density_class_handle,P_G,m_d,wmin,merging_threshold,M)
+        function obj = initialize(obj,density_class_handle,P_G,m_d,wmin,merging_threshold,M,rmin,r_recycle)
             %INITIATOR initializes singleobjectracker class
             %INPUT: density_class_handle: density class handle
             %       P_G: gating size in decimal --- scalar
@@ -33,49 +33,24 @@ classdef multiobjectracker
             %       wmin: allowed minimum hypothesis weight --- scalar
             %       merging_threshold: merging threshold --- scalar
             %       M: allowed maximum number of hypotheses --- scalar
+            %       rmin: allowed minimum object's probability of existence --- scalar
+            %       r_recycle: recycling threshold --- scalar
             %OUTPUT:  obj.density: density class handle
             %         obj.gating.P_G: gating size in decimal --- scalar
             %         obj.gating.size: gating size --- scalar
             %         obj.hypothesis_reduction.wmin: allowed minimum hypothesis weight in logarithmic scale --- scalar
             %         obj.hypothesis_reduction.merging_threshold: merging threshold --- scalar
             %         obj.hypothesis_reduction.M: allowed maximum number of hypotheses --- scalar
+            %         obj.hypothesis_reduction.rmin: allowed minimum object's probability of existence --- scalar
+            %         obj.hypothesis_reduction.r_recycle: recycling threshold --- scalar
             obj.density = feval(density_class_handle);
             obj.gating.P_G = P_G;
             obj.gating.size = chi2inv(obj.gating.P_G,m_d);
             obj.hypothesis_reduction.wmin = log(wmin);
             obj.hypothesis_reduction.merging_threshold = merging_threshold;
             obj.hypothesis_reduction.M = M;
-        end
-        
-        function estimates = GMPHDtracker(obj, birthmodel, Z, sensormodel, motionmodel, measmodel)
-            %GMPHDTRACKER tracks multiple objects using Gaussian mixture probability hypothesis density filter
-            %INPUT: birthmodel: object birth model: structure array of size (1, number of hypothesised new born objects per time step) with three fields:
-            %                   w: object birth weight --- scalar
-            %                   x: object initial state mean --- (object state dimension) x 1 vector
-            %                   P: object initial state covariance --- (object state dimension) x (object state dimension) matrix
-            %       Z: cell array of size (total tracking time, 1), each cell
-            %          stores measurements of size (measurement dimension) x (number of measurements at corresponding time step)
-            %OUTPUT:estimates: cell array of size (total tracking time, 1), each cell stores estimated object state of size (object state dimension) x (number of objects)
-            
-            K = length(Z);
-            estimates = cell(K,1);
-            
-            %Create a class instance
-            PPP = PoissonRFS();
-            %Initialize the PPP
-            PPP = initialize(PPP,obj.density,birthmodel);
-            
-            for k = 1:K
-                %PPP prediction
-                PPP = predict(PPP,motionmodel,sensormodel.P_S,birthmodel);
-                %PPP update
-                PPP = update(PPP,Z{k},measmodel,sensormodel,obj.gating);
-                %PPP approximation
-                PPP = componentReduction(PPP,obj.hypothesis_reduction);
-                %Extract state estimates from the PPP
-                estimates{k} = stateExtraction(PPP);
-            end
-            
+            obj.hypothesis_reduction.rmin = rmin;
+            obj.hypothesis_reduction.r_recycle = r_recycle;
         end
         
         function estimates = PMBMtracker(obj, birthmodel, Z, sensormodel, motionmodel, measmodel)
@@ -102,13 +77,13 @@ classdef multiobjectracker
                 %PMBM update
                 PMBM = PMBM_update(PMBM,Z{k},measmodel,sensormodel,obj.gating,obj.hypothesis_reduction.wmin,obj.hypothesis_reduction.M);
                 %Bernoulli components reduction
-                PMBM = Bern_prune(PMBM,1e-5);
+                PMBM = Bern_prune(PMBM,obj.hypothesis_reduction.rmin);
                 %Prune PPP components
                 PMBM = PPP_prune(PMBM,obj.hypothesis_reduction.wmin);
                 %Recycling
-                PMBM = recycle(PMBM,1e-1,obj.hypothesis_reduction.merging_threshold);
+                PMBM = Bern_recycle(PMBM,obj.hypothesis_reduction.r_recycle,obj.hypothesis_reduction.merging_threshold);
                 %Object state extraction
-                estimates{k} = stateExtraction(PMBM);
+                estimates{k} = PMBM_estimator2(PMBM);
             end
         end
         

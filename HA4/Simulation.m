@@ -88,12 +88,14 @@ measdata = measdatagen(objectdata,sensor_model,meas_model);
 
 %% Object tracker parameter setting
 P_G = 0.999;            %gating size in percentage
-wmin = 1e-5;            %hypothesis pruning threshold
+wmin = 1e-3;            %hypothesis pruning threshold
 merging_threshold = 4;  %hypothesis merging threshold
-M = 100;                %maximum number of hypotheses kept in PHD
+M = 100;                %maximum number of hypotheses kept
+rmin = 1e-3;            %Bernoulli component pruning threshold
+r_recycle = 1e-1;       %Bernoulli component recycling threshold
 density_class_handle = @GaussianDensity;    %density class handle
 tracker = multiobjectracker();
-tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_threshold,M);
+tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_threshold,M,rmin,r_recycle);
 
 %% GM-PHD filter
 % GMPHDestimates = GMPHDtracker(tracker, birth_model, measdata, sensor_model, motion_model, meas_model);

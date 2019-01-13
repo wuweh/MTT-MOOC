@@ -191,11 +191,11 @@ classdef multiobjectProcess
                 %append zeros to make each multi-Bernoulli's cardinality pmf have equal support
                 pcard(i,:) = [zeros(1,lr1) prod(1-r{i})*poly(-r{i}./(1-r{i})) zeros(1,max(M)-M(i))];
             end
-            if size(p,1) > 1
-                p = p';
+            if size(p_norm,1) > 1
+                p_norm = p_norm';
             end
             %calculate the cardinality pmf of the multi-Bernoulli mixture
-            pcard = sum(pcard.*p');
+            pcard = sum(pcard.*p_norm',1);
             obj.card_pmf = @(x) multiobjectProcess.createPMF(pcard,x);
         end
         
