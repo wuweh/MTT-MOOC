@@ -216,6 +216,7 @@ classdef PMBMfilter
                 idx = sum(ht_upd,1)==0;
                 ht_upd = ht_upd(:,~idx);
                 hypoTable = hypoTable(~idx);
+                n_tt_upd = size(ht_upd,2);
             end
             
             %Normalize global hypothesis weights
@@ -250,6 +251,7 @@ classdef PMBMfilter
                     ht_upd(~idx,i) = ht_upd(~idx,i) - 1;
                 end
             end
+            
             obj.paras.MBM.ht = ht_upd;
         end
         
