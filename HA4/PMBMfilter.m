@@ -200,9 +200,16 @@ classdef PMBMfilter
             for i = 1:n_tt
                 idx = arrayfun(@(x) x.r<recycle_threshold, obj.paras.MBM.tt{i});
                 %Here, we should also consider the weights of different MBs
+                idx_t = find(idx);
+                n_h = length(idx_t);
+                w_h = zeros(n_h,1);
+                for j = 1:n_h
+                    idx_h = obj.paras.MBM.ht(:,i) == idx_t(j);
+                    [~,w_h(j)] = normalizeLogWeights(obj.paras.MBM.w(idx_h));
+                end
                 %Recycle
                 temp = obj.paras.MBM.tt{i}(idx);
-                obj.paras.PPP.w = [obj.paras.PPP.w;[temp.r]'];
+                obj.paras.PPP.w = [obj.paras.PPP.w;log([temp.r]')+w_h];
                 obj.paras.PPP.states = [obj.paras.PPP.states;[temp.state]'];
                 %Remove Bernoullis
                 obj.paras.MBM.tt{i} = obj.paras.MBM.tt{i}(~idx);
