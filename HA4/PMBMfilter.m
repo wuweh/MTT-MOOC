@@ -199,6 +199,7 @@ classdef PMBMfilter
             n_tt = length(obj.paras.MBM.tt);
             for i = 1:n_tt
                 idx = arrayfun(@(x) x.r<recycle_threshold, obj.paras.MBM.tt{i});
+                %Here, we should also consider the weights of different MBs
                 %Recycle
                 temp = obj.paras.MBM.tt{i}(idx);
                 obj.paras.PPP.w = [obj.paras.PPP.w;[temp.r]'];

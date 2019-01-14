@@ -85,7 +85,7 @@ classdef multiobjectracker
                 %Prune PPP components
                 PMBM = PPP_prune(PMBM,obj.hypothesis_reduction.wmin);
                 %Recycling
-                PMBM = Bern_recycle(PMBM,obj.hypothesis_reduction.r_recycle,obj.hypothesis_reduction.merging_threshold);
+%                 PMBM = Bern_recycle(PMBM,obj.hypothesis_reduction.r_recycle,obj.hypothesis_reduction.merging_threshold);
                 %Object state extraction
                 estimates{k} = PMBM_estimator(PMBM,estimator_type);
             end

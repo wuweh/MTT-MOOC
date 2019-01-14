@@ -1,4 +1,4 @@
-clear; close all; clc
+clear all; close all; clc
 
 dbstop if error
 
@@ -118,7 +118,7 @@ h2 = plot(PMBM_estimated_state(1,:), PMBM_estimated_state(2,:),'r+');
 
 xlabel('x'); ylabel('y')
 
-legend([h1 h2],'Ground Truth','PHD', 'Location', 'best')
+legend([h1 h2],'Ground Truth','PMBM', 'Location', 'best')
 
 %Cardinality plot
 figure
