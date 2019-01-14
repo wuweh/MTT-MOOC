@@ -1,7 +1,8 @@
 function [ Error ] = GOSPAmetric(X,Y,c,p)
 
 % Function that computes the Generalised Optimal Subpattern Assignment (GOSPA) Metric
-% for the random sets X and Y.
+% for the random sets X and Y. Assume that X represents the estimates and Y
+% represents the ground truth
 
 % Input X (and Y) is with J estimates
 % X -- Nx * J matrix with kinematic vectors

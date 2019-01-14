@@ -76,7 +76,6 @@ classdef multiobjectracker
             estimator_type = 1;
             
             for k = 1:K
-                k
                 %PMBM prediction
                 PMBM = PMBM_predict(PMBM,motionmodel,birthmodel,sensormodel);
                 %PMBM update
