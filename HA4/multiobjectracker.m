@@ -70,20 +70,25 @@ classdef multiobjectracker
             PMBM = PMBMfilter();
             %Initialize the PMBM
             PMBM = initialize(PMBM,obj.density,birthmodel);
+            %Choose PMBM estimator to use
+            %Estimator 1 is proposed based on the PMBM
+            %Estimator 2 is adapted from the one used in delta-GLMB filter
+            estimator_type = 1;
             
             for k = 1:K
+                k
                 %PMBM prediction
                 PMBM = PMBM_predict(PMBM,motionmodel,birthmodel,sensormodel);
                 %PMBM update
                 PMBM = PMBM_update(PMBM,Z{k},measmodel,sensormodel,obj.gating,obj.hypothesis_reduction.wmin,obj.hypothesis_reduction.M);
-                %Bernoulli components reduction
+                %Prune Bernoulli components
                 PMBM = Bern_prune(PMBM,obj.hypothesis_reduction.rmin);
                 %Prune PPP components
                 PMBM = PPP_prune(PMBM,obj.hypothesis_reduction.wmin);
                 %Recycling
                 PMBM = Bern_recycle(PMBM,obj.hypothesis_reduction.r_recycle,obj.hypothesis_reduction.merging_threshold);
                 %Object state extraction
-                estimates{k} = PMBM_estimator2(PMBM);
+                estimates{k} = PMBM_estimator(PMBM,estimator_type);
             end
         end
         

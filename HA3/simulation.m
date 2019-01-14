@@ -133,7 +133,7 @@ p = 1;
 gospa = zeros(K,4);
 for k = 1:K
     %Evaluate kinematics estimation performance using GOSPA metric
-    gospa(k,:) = GOSPAmetric(objectdata.X{k},GMPHDestimates{k},c,p);
+    gospa(k,:) = GOSPAmetric(GMPHDestimates{k},objectdata.X{k},c,p);
 end
 
 figure

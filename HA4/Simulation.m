@@ -3,9 +3,9 @@ clear; close all; clc
 dbstop if error
 
 %Choose object detection probability
-P_D = 0.98;
+P_D = 0.7;
 %Choose clutter rate
-lambda_c = 5;
+lambda_c = 60;
 %Choose object survival probability
 P_S = 0.99;
 
@@ -143,8 +143,8 @@ p = 1;
 gospa = zeros(K,4);
 for k = 1:K
     %Evaluate kinematics estimation performance using GOSPA metric
-%     gospa(k,:) = GOSPAmetric(objectdata.X{k},GMPHDestimates{k},c,p);
-    gospa(k,:) = GOSPAmetric(objectdata.X{k},PMBMestimates{k},c,p);
+%     gospa(k,:) = GOSPAmetric(GMPHDestimates{k},objectdata.X{k},c,p);
+    gospa(k,:) = GOSPAmetric(PMBMestimates{k},objectdata.X{k},c,p);
 end
 
 figure
