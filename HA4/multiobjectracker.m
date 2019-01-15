@@ -53,6 +53,37 @@ classdef multiobjectracker
             obj.hypothesis_reduction.r_recycle = r_recycle;
         end
         
+        function estimates = GMPHDtracker(obj, birthmodel, Z, sensormodel, motionmodel, measmodel)
+            %GMPHDTRACKER tracks multiple objects using Gaussian mixture probability hypothesis density filter
+            %INPUT: birthmodel: object birth model: structure array of size (1, number of hypothesised new born objects per time step) with three fields:
+            %                   w: object birth weight --- scalar
+            %                   x: object initial state mean --- (object state dimension) x 1 vector
+            %                   P: object initial state covariance --- (object state dimension) x (object state dimension) matrix
+            %       Z: cell array of size (total tracking time, 1), each cell
+            %          stores measurements of size (measurement dimension) x (number of measurements at corresponding time step)
+            %OUTPUT:estimates: cell array of size (total tracking time, 1), each cell stores estimated object state of size (object state dimension) x (number of objects)
+            
+            K = length(Z);
+            estimates = cell(K,1);
+            
+            %Create a class instance
+            PPP = PHDfilter();
+            %Initialize the PPP
+            PPP = initialize(PPP,obj.density,birthmodel);
+            
+            for k = 1:K
+                %PPP prediction
+                PPP = predict(PPP,motionmodel,sensormodel.P_S,birthmodel);
+                %PPP update
+                PPP = update(PPP,Z{k},measmodel,sensormodel,obj.gating);
+                %PPP approximation
+                PPP = componentReduction(PPP,obj.hypothesis_reduction);
+                %Extract state estimates from the PPP
+                estimates{k} = stateExtraction(PPP);
+            end
+
+        end
+        
         function estimates = PMBMtracker(obj, birthmodel, Z, sensormodel, motionmodel, measmodel)
             %PMBMTRACKER tracks multiple objects using Poisson multi-Bernoulli mixture filter
             %INPUT: birthmodel: object birth model: structure array of size (1, number of hypothesised new born objects per time step) with three fields:
@@ -70,13 +101,8 @@ classdef multiobjectracker
             PMBM = PMBMfilter();
             %Initialize the PMBM
             PMBM = initialize(PMBM,obj.density,birthmodel);
-            %Choose PMBM estimator to use
-            %Estimator 1 is proposed based on the PMBM
-            %Estimator 2 is adapted from the one used in delta-GLMB filter
-            estimator_type = 1;
             
             for k = 1:K
-                k
                 %PMBM prediction
                 PMBM = PMBM_predict(PMBM,motionmodel,birthmodel,sensormodel);
                 %PMBM update
@@ -88,8 +114,9 @@ classdef multiobjectracker
                 %Recycling
                 PMBM = Bern_recycle(PMBM,obj.hypothesis_reduction.r_recycle,obj.hypothesis_reduction.merging_threshold);
                 %Object state extraction
-                estimates{k} = PMBM_estimator(PMBM,estimator_type);
+                estimates{k} = PMBM_estimator(PMBM);
             end
+            
         end
         
     end

@@ -3,9 +3,9 @@ clear all; close all; clc
 dbstop if error
 
 %Choose object detection probability
-P_D = 0.75;
+P_D = 0.9;
 %Choose clutter rate
-lambda_c = 30;
+lambda_c = 10;
 %Choose object survival probability
 P_S = 0.99;
 
@@ -98,7 +98,7 @@ tracker = multiobjectracker();
 tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_threshold,M,rmin,r_recycle);
 
 %% GM-PHD filter
-% GMPHDestimates = GMPHDtracker(tracker, birth_model, measdata, sensor_model, motion_model, meas_model);
+GMPHDestimates = GMPHDtracker(tracker, birth_model, measdata, sensor_model, motion_model, meas_model);
 
 %% PMBM filter
 PMBMestimates = PMBMtracker(tracker, birth_model, measdata, sensor_model, motion_model, meas_model);
@@ -109,7 +109,7 @@ figure
 hold on
 
 true_state = cell2mat(objectdata.X');
-% GMPHD_estimated_state = cell2mat(GMPHDestimates');
+GMPHD_estimated_state = cell2mat(GMPHDestimates');
 PMBM_estimated_state = cell2mat(PMBMestimates');
 
 h1 = plot(true_state(1,:), true_state(2,:), 'bo');
@@ -125,38 +125,47 @@ figure
 grid on
 hold on
 true_cardinality = objectdata.N;
-% GMPHD_estimated_cardinality = cellfun(@(x) size(x,2), GMPHDestimates);
+GMPHD_estimated_cardinality = cellfun(@(x) size(x,2), GMPHDestimates);
 PMBM_estimated_cardinality = cellfun(@(x) size(x,2), PMBMestimates);
 
 h1 = plot(1:length(true_cardinality),true_cardinality,'bo','linewidth',2);
-% h2 = plot(1:length(GMPHD_estimated_cardinality),GMPHD_estimated_cardinality,'r+','linewidth',2);
-h2 = plot(1:length(PMBM_estimated_cardinality),PMBM_estimated_cardinality,'r+','linewidth',2);
+h2 = plot(1:length(GMPHD_estimated_cardinality),GMPHD_estimated_cardinality,'m+','linewidth',2);
+h3 = plot(1:length(PMBM_estimated_cardinality),PMBM_estimated_cardinality,'r+','linewidth',2);
 
 xlabel('Time step')
 ylabel('Cardinality')
-% legend([h1 h2],'Ground Truth','PHD', 'Location', 'best')
-legend([h1 h2],'Ground Truth','PMBM', 'Location', 'best')
+legend([h1 h2 h3],'Ground Truth','PHD','PMBM', 'Location', 'best')
 
 %GOSPA plot
 c = 100;
 p = 1;
-gospa = zeros(K,4);
+GMPHDgospa = zeros(K,4);
+PMBMgospa = zeros(K,4);
 for k = 1:K
     %Evaluate kinematics estimation performance using GOSPA metric
-%     gospa(k,:) = GOSPAmetric(GMPHDestimates{k},objectdata.X{k},c,p);
-    gospa(k,:) = GOSPAmetric(PMBMestimates{k},objectdata.X{k},c,p);
+    GMPHDgospa(k,:) = GOSPAmetric(GMPHDestimates{k},objectdata.X{k},c,p);
+    PMBMgospa(k,:) = GOSPAmetric(PMBMestimates{k},objectdata.X{k},c,p);
 end
 
 figure
 subplot(4,1,1)
-plot(1:K,gospa(:,1),'linewidth',2)
+hold on
+plot(1:K,GMPHDgospa(:,1),'linewidth',2)
+plot(1:K,PMBMgospa(:,1),'linewidth',2)
+legend('PHD','PMBM','location','best')
 ylabel('GOSPA')
 subplot(4,1,2)
-plot(1:K,gospa(:,2),'linewidth',2)
+hold on
+plot(1:K,GMPHDgospa(:,2),'linewidth',2)
+plot(1:K,PMBMgospa(:,2),'linewidth',2)
 ylabel('Kinematics')
 subplot(4,1,3)
-plot(1:K,gospa(:,3),'linewidth',2)
+hold on
+plot(1:K,GMPHDgospa(:,3),'linewidth',2)
+plot(1:K,PMBMgospa(:,3),'linewidth',2)
 ylabel('# Miss')
 subplot(4,1,4)
-plot(1:K,gospa(:,4),'linewidth',2)
+hold on
+plot(1:K,GMPHDgospa(:,4),'linewidth',2)
+plot(1:K,PMBMgospa(:,4),'linewidth',2)
 xlabel('Time Step'); ylabel('# False')

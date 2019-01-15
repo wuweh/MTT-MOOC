@@ -15,18 +15,18 @@ classdef PMBMfilter
             %INPUT: density_class_handle: density class handle
             %       birthmodel: a struct specifying the intensity (mixture) of a PPP birth model
             %OUTPUT:obj.density: density class handle
-            %       obj.paras.PPP.w: weights of mixture components in PPP intensity 
+            %       obj.paras.PPP.w: weights of mixture components in PPP intensity
             %                        --- vector of size (number of mixture components x 1)
-            %       obj.paras.PPP.states: parameters of mixture components 
-            %                             in PPP intensity struct array of size 
+            %       obj.paras.PPP.states: parameters of mixture components
+            %                             in PPP intensity struct array of size
             %                             (number of mixture components x 1)
             %       obj.MBM.w: weights of MBs--- vector of size (number of MBs (global hypotheses) x 1)
             %       obj.MBM.ht: hypothesis table --- matrix of size (number of global hypotheses x number of tracks)
             %                   entry (h,i) indicates that the (h,i)th single object hypothesis in the ith track
             %                   is included in the hth global hypothesis. If the single object hypothesis is a null
             %                   hypothesis with probability of existence r = 0, (h,i) = 0.
-            %       obj.MBM.tt: tracks --- cell of size (number of tracks x 1). The ith cell contains single object 
-            %       hypotheses in struct form of size (number of single object hypotheses in the ith track x 1). 
+            %       obj.MBM.tt: tracks --- cell of size (number of tracks x 1). The ith cell contains single object
+            %       hypotheses in struct form of size (number of single object hypotheses in the ith track x 1).
             %       Each struct has two fields: r: probability of existence; states: parameters specifying the object density
             %       Note that single object hypothesis with r = 0 is not explicitly represented.
             obj.density = density_class_handle;
@@ -34,13 +34,13 @@ classdef PMBMfilter
             obj.paras.PPP.states = rmfield(birthmodel,'w')';
             obj.paras.MBM.w = [];
             obj.paras.MBM.ht = [];
-            obj.paras.MBM.tt = cell(0,1);
+            obj.paras.MBM.tt = {};
         end
         
         function Bern = Bern_predict(obj,Bern,motionmodel,P_S)
             %BERN_PREDICT performs prediction step for a Bernoulli component
             %INPUT: Bern: a struct that specifies a Bernoulli component,
-            %             with fields: r: probability of existence --- scalar; 
+            %             with fields: r: probability of existence --- scalar;
             %             state: a struct contains parameters describing the object pdf
             %       P_S: object survival probability
             Bern.r = Bern.r*P_S;
@@ -56,7 +56,7 @@ classdef PMBMfilter
             %       P_D: object detection probability --- scalar
             %       P_G: gating size in probabiliy --- scalar
             %OUTPUT:Bern: a struct that specifies a Bernoulli component,
-            %             with fields: r: probability of existence --- scalar; 
+            %             with fields: r: probability of existence --- scalar;
             %             state: a struct contains parameters describing the object pdf
             %       lik_undetected: missed detection likelihood --- scalar in logorithmic scale
             Bern = obj.paras.MBM.tt{tt_entry(1)}(tt_entry(2));
@@ -67,7 +67,7 @@ classdef PMBMfilter
         end
         
         function lik_detected = Bern_detected_update_lik(obj,tt_entry,z,measmodel,P_D)
-            %BERN_DETECTED_UPDATE_LIK calculates the measurement update 
+            %BERN_DETECTED_UPDATE_LIK calculates the measurement update
             %likelihood for a given single object hypothesis.
             %INPUT: tt_entry: a (2 x 1) array that specifies the index of single
             %                 object hypotheses. (i,j) indicates the jth
@@ -87,7 +87,7 @@ classdef PMBMfilter
             %                 single object hypothesis in the ith track.
             %       z: measurement vector --- (measurement dimension x 1)
             %OUTPUT:Bern: a struct that specifies a Bernoulli component,
-            %             with fields: r: probability of existence --- scalar; 
+            %             with fields: r: probability of existence --- scalar;
             %             state: a struct contains parameters describing the object pdf
             Bern = obj.paras.MBM.tt{tt_entry(1)}(tt_entry(2));
             Bern.state = obj.density.update(Bern.state,z,measmodel);
@@ -114,7 +114,7 @@ classdef PMBMfilter
             %       P_D: object detection probability --- scalar
             %       clutter_intensity: Poisson clutter intensity --- scalar
             %OUTPUT:Bern: a struct that specifies a Bernoulli component,
-            %             with fields: r: probability of existence --- scalar; 
+            %             with fields: r: probability of existence --- scalar;
             %             state: a struct contains parameters describing the object pdf
             %       lik_new: measurement update likelihood of PPP --- scalar in logarithmic scale
             state_upd = arrayfun(@(x) obj.density.update(x,z,measmodel), obj.paras.PPP.states);
@@ -148,7 +148,6 @@ classdef PMBMfilter
             %is removed.
             %INPUT: prune_threshold: Bernoulli components with probability
             %of existence smaller than this threshold will be pruned --- scalar
-            
             n_tt = length(obj.paras.MBM.tt);
             for i = 1:n_tt
                 %Find all Bernoulli components needed to be pruned
@@ -164,6 +163,7 @@ classdef PMBMfilter
                     obj.paras.MBM.ht(:,i) = temp;
                 end
             end
+            
             %Remove tracks that contains only null single object hypotheses
             idx = sum(obj.paras.MBM.ht,1)~=0;
             obj.paras.MBM.ht = obj.paras.MBM.ht(:,idx);
@@ -188,7 +188,7 @@ classdef PMBMfilter
                 [ht,~,ic] = unique(obj.paras.MBM.ht,'rows');
                 if(size(ht,1)~=size(obj.paras.MBM.ht,1))
                     %There are duplicate entries
-                    w = zeros(1,size(ht,1));
+                    w = zeros(size(ht,1),1);
                     for i = 1:size(ht,1)
                         indices_dupli = (ic==i);
                         [~,w(i)] = normalizeLogWeights(obj.paras.MBM.w(indices_dupli));
@@ -202,15 +202,14 @@ classdef PMBMfilter
         function obj = Bern_recycle(obj,recycle_threshold,merging_threshold)
             %BERN_RECYCLE recycles Bernoulli components with small
             %probability of existence, add them to the PPP component, and
-            %re-index the hypothesis table. If a track contains no single 
+            %re-index the hypothesis table. If a track contains no single
             %object hypothesis after pruning, this track is removed. After
             %recycling, merge similar Gaussian components in the PPP intensity
             %INPUT: recycle_threshold: Bernoulli components with probability
-            %                          of existence smaller than this threshold 
+            %                          of existence smaller than this threshold
             %                          needed to be recycled --- scalar
             %       merging_threshold: merging threshold used in method
             %                          GaussianDensity.mixtureReduction --- scalar
-            
             n_tt = length(obj.paras.MBM.tt);
             for i = 1:n_tt
                 idx = arrayfun(@(x) x.r<recycle_threshold, obj.paras.MBM.tt{i});
@@ -236,13 +235,13 @@ classdef PMBMfilter
                     temp(temp==idx(j)) = 0;
                     obj.paras.MBM.ht(:,i) = temp;
                 end
-                
             end
+            
             %Remove tracks that contains only null single object hypotheses
             idx = sum(obj.paras.MBM.ht,1)~=0;
             obj.paras.MBM.ht = obj.paras.MBM.ht(:,idx);
             obj.paras.MBM.tt = obj.paras.MBM.tt(idx);
-            if isempty(obj.paras.MBM.tt)
+            if isempty(obj.paras.MBM.ht)
                 obj.paras.MBM.w = [];
             end
             
@@ -262,7 +261,7 @@ classdef PMBMfilter
                 [ht,~,ic] = unique(obj.paras.MBM.ht,'rows');
                 if(size(ht,1)~=size(obj.paras.MBM.ht,1))
                     %There are duplicate entries
-                    w = zeros(1,size(ht,1));
+                    w = zeros(size(ht,1),1);
                     for i = 1:size(ht,1)
                         indices_dupli = (ic==i);
                         [~,w(i)] = normalizeLogWeights(obj.paras.MBM.w(indices_dupli));
@@ -272,104 +271,105 @@ classdef PMBMfilter
                 end
             end
             
-            %Merge similar Gaussian components in the PPP intensity 
+            %Merge similar Gaussian components in the PPP intensity
             if ~isempty(obj.paras.PPP.w)
                 [obj.paras.PPP.w,obj.paras.PPP.states] = obj.density.mixtureReduction(obj.paras.PPP.w,obj.paras.PPP.states,merging_threshold);
             end
         end
         
-        function estimates = PMBM_estimator(obj,estimator_type)
+        function estimates = PMBM_estimator(obj,threshold)
             %PMBM_ESTIMATOR performs object state estimation in the PMBM filter
-            %INPUT: estimator_type: an integer that specifies which
-            %                       estimator to use --- 1 or 2
-            %In Estimator 1, we first select the global hypothesis 
-            %multi-Bernoulli mixture with highest weight. Then, we report 
-            %the mean of the Bernoulli components in the selected hypothesis 
-            %whose existence probability is above a threshold 0.5. 
-            %In Estimator 2, we first obtains the MAP estimate of the cardinality n. 
-            %We can then obtain the highest weight global hypothesis with 
+            %INPUT: threshold (if exist): object states are extracted from Bernoulli
+            %components with probability of existence no less than this
+            %threhold in Estimator 1. Given the probabilities of detection
+            %and survival, this threshold determines the number of consecutive misdetections
+            %%%
+            %In Estimator 1, we first select the global hypothesis
+            %multi-Bernoulli mixture with highest weight. Then, we report
+            %the mean of the Bernoulli components in the selected hypothesis
+            %whose existence probability is above a threshold.
+            %In Estimator 2, we first obtains the MAP estimate of the cardinality n.
+            %We can then obtain the highest weight global hypothesis with
             %deterministic cardinality. Once we have found the global hypothesis,
-            %the set estimate is formed by the means of the n Bernoulli 
+            %the set estimate is formed by the means of the n Bernoulli
             %components with highest existence in this hypothesis.
             
             estimates = [];
-            if nargin == 1
-                estimator_type = 1;
-            end
-            switch (estimator_type)
-                case 1
-                    %Find the global hypothesis with the highest weight
-                    [~,I] = max(obj.paras.MBM.w);
-                    h_best = obj.paras.MBM.ht(I,:);
-                    for i = 1:length(h_best)
-                        %Check the validity of the single object hypothesis
-                        if h_best(i)~=0
-                            Bern = obj.paras.MBM.tt{i}(h_best(i));
-                            %Report estimates from Bernoulli components
-                            %with probability of existence larger than 0.5
-                            if Bern.r >= 0.5
-                                estimates = [estimates obj.density.expectedValue(Bern.state)];
-                            end
-                        end
-                    end
-                case 2
-                    num_mb = length(obj.paras.MBM.w);
-                    r = cell(num_mb,1);
-                    for i = 1:num_mb
-                        ht = obj.paras.MBM.ht(i,:);
-                        for j = 1:length(ht)
-                            if ht(j)~=0
-                                Bern = obj.paras.MBM.tt{j}(ht(j));
-                                r{i} = [r{i};Bern.r];
-                            end
-                        end
-                    end
-                    M = cellfun('length',r);
-                    pcard = zeros(num_mb,max(M)+1);
-                    %calculate the cardinality pmf for each multi-Bernoulli RFS
-                    for i = 1:num_mb
-                        lr1 = length(find(r{i}==1));
-                        temp = r{i}(r{i}~=1);
-                        %append zeros to make each multi-Bernoulli's cardinality pmf have equal support
-                        pcard(i,:) = [zeros(1,lr1) prod(1-temp)*poly(-temp./(1-temp)) zeros(1,max(M)-M(i))];
-                    end
-                    %calculate the cardinality pmf of the multi-Bernoulli mixture
-                    pcard = sum(pcard.*exp(obj.paras.MBM.w),1);
-                    [~,I] = max(pcard);
-                    C_max = I - 1;
-                    %for each MB hypothesis in the MBM, find the MAP cardinality estimate
-                    %this step is to remove MB components with unqualified cardinality support
-                    idx = M >= C_max;
-                    w = obj.paras.MBM.w(idx);
-                    r = r(idx);
-                    ht = obj.paras.MBM.ht(idx,:);
-                    num_mb = length(w);
-                    %calculate the weights of global hypotheses with
-                    %deterministic cardinality n
-                    w_deter = zeros(num_mb,1);
-                    for i = 1:num_mb
-                        r_sort = sort(r{i},'descend');
-                        w_deter(i) = w(i)*prod(r_sort(1:C_max));
-                        if length(r{i}) > C_max
-                            w_deter(i) = w_deter(i)*prod(1-r_sort(C_max+1:end));
-                        end
-                    end
-                    %find the highest weight global hypothesis with the
-                    %deterministic cardinality n
-                    [~,J] = max(w_deter);
-                    h_best = ht(J,:);
-                    r = [];
-                    for i = 1:length(h_best)
-                        if h_best(i)~=0
-                            Bern = obj.paras.MBM.tt{i}(h_best(i));
-                            r = [r Bern.r];
+            if nargin == 2
+                %Estimator 1
+                %Find the global hypothesis with the highest weight
+                [~,I] = max(obj.paras.MBM.w);
+                h_best = obj.paras.MBM.ht(I,:);
+                for i = 1:length(h_best)
+                    %Check the validity of the single object hypothesis
+                    if h_best(i)~=0
+                        Bern = obj.paras.MBM.tt{i}(h_best(i));
+                        %Report estimates from Bernoulli components
+                        %with probability of existence larger than 0.5
+                        if Bern.r >= threshold
                             estimates = [estimates obj.density.expectedValue(Bern.state)];
                         end
                     end
-                    %report estimates from the n Bernoulli components with
-                    %the highest probability of existence
-                    [~,I] = sort(r,'descend');
-                    estimates = estimates(:,I(1:C_max));
+                end
+            elseif nargin == 1
+                %Estimator 2
+                num_mb = length(obj.paras.MBM.w);
+                r = cell(num_mb,1);
+                for i = 1:num_mb
+                    ht = obj.paras.MBM.ht(i,:);
+                    for j = 1:length(ht)
+                        if ht(j)~=0
+                            Bern = obj.paras.MBM.tt{j}(ht(j));
+                            r{i} = [r{i};Bern.r];
+                        end
+                    end
+                end
+                M = cellfun('length',r);
+                pcard = zeros(num_mb,max(M)+1);
+                %calculate the cardinality pmf for each multi-Bernoulli RFS
+                for i = 1:num_mb
+                    lr1 = length(find(r{i}==1));
+                    temp = r{i}(r{i}~=1);
+                    %append zeros to make each multi-Bernoulli's cardinality pmf have equal support
+                    pcard(i,:) = [zeros(1,lr1) prod(1-temp)*poly(-temp./(1-temp)) zeros(1,max(M)-M(i))];
+                end
+                %calculate the cardinality pmf of the multi-Bernoulli mixture
+                pcard = sum(pcard.*exp(obj.paras.MBM.w),1);
+                [~,I] = max(pcard);
+                C_max = I - 1;
+                %for each MB hypothesis in the MBM, find the MAP cardinality estimate
+                %this step is to remove MB components with unqualified cardinality support
+                idx = M >= C_max;
+                w = obj.paras.MBM.w(idx);
+                r = r(idx);
+                ht = obj.paras.MBM.ht(idx,:);
+                num_mb = length(w);
+                %calculate the weights of global hypotheses with
+                %deterministic cardinality n
+                w_deter = zeros(num_mb,1);
+                for i = 1:num_mb
+                    r_sort = sort(r{i},'descend');
+                    w_deter(i) = w(i)*prod(r_sort(1:C_max));
+                    if length(r{i}) > C_max
+                        w_deter(i) = w_deter(i)*prod(1-r_sort(C_max+1:end));
+                    end
+                end
+                %find the highest weight global hypothesis with the
+                %deterministic cardinality n
+                [~,J] = max(w_deter);
+                h_best = ht(J,:);
+                r = [];
+                for i = 1:length(h_best)
+                    if h_best(i)~=0
+                        Bern = obj.paras.MBM.tt{i}(h_best(i));
+                        r = [r Bern.r];
+                        estimates = [estimates obj.density.expectedValue(Bern.state)];
+                    end
+                end
+                %report estimates from the n Bernoulli components with
+                %the highest probability of existence
+                [~,I] = sort(r,'descend');
+                estimates = estimates(:,I(1:C_max));
             end
         end
         
@@ -432,9 +432,10 @@ classdef PMBMfilter
             %undetected objects
             used_meas_du = used_meas_d & used_meas_u;
             
+            %obtain measurements that are inside the gate of detected objects
             z_d = [z(:,used_meas_du) z(:,used_meas_d_not_u)];
             m = size(z_d,2);
-            gating_matrix_d = cellfun(@(x) x(used_meas_du | used_meas_d_not_u,:), gating_matrix_d, 'UniformOutput',false);
+            gating_matrix_d = cellfun(@(x) [x(used_meas_du,:);x(used_meas_d_not_u,:)], gating_matrix_d, 'UniformOutput',false);
             n_tt_upd = n_tt + m;                %number of tracks
             hypoTable = cell(n_tt_upd,1);       %initialise hypothesis table, one for each track
             for i = 1:n_tt
@@ -445,9 +446,6 @@ classdef PMBMfilter
                 %initialise hypothesis table for track i
                 hypoTable{i} = cell(num_hypo*(m+1),1);
                 for j = 1:num_hypo
-                    %Perform gating for each single object hypothesis
-                    Bern_temp = obj.paras.MBM.tt{i}(j);
-                    [~,gating_matrix_d{i}(:,j)] = obj.density.ellipsoidalGating(Bern_temp.state,z_d,measmodel,gating.size);
                     %Missed detection
                     [hypoTable{i}{(j-1)*(m+1)+1},likTable{i}(j,1)] = Bern_undetected_update(obj,[i,j],sensormodel.P_D,gating.P_G);
                     %Update with measurement
@@ -460,9 +458,9 @@ classdef PMBMfilter
                     end
                 end
             end
-
             
-            %Update undetected objects            
+            %%%
+            %Update undetected objects
             lik_new = -inf(m,1);
             %Create new tracks, one for each measurement inside the gate
             for i = 1:m
@@ -484,7 +482,7 @@ classdef PMBMfilter
             %Update undetected objects with missed detection
             obj = PPP_undetected_update(obj,sensormodel.P_D,gating.P_G);
             
-            
+            %%%
             %Update global hypothesis
             w_upd = -inf(0,1);             %initialise global hypothesis weight
             %initialise global hypothesis table, the (h,i)th single object
@@ -521,8 +519,7 @@ classdef PMBMfilter
                         for i = 1:n_tt
                             idx = find(col4rowBest(:,j)==i, 1);
                             if obj.paras.MBM.ht(h,i) == 0
-                                %do nothing for null single object
-                                %hypothesis (r = 0)
+                                %do nothing for null single object hypothesis (r = 0)
                                 ht_upd(H_upd,i) = 0;
                             else
                                 if isempty(idx)
@@ -553,9 +550,7 @@ classdef PMBMfilter
             for i = 1:num_u_not_d
                 [hypoTable{n_tt_upd+i,1}{1}, ~] = PPP_detected_update(obj,z_u_not_d(:,i),measmodel,sensormodel.P_D,sensormodel.lambda_c*sensormodel.pdf_c);
             end
-            ht_temp = ones(H_upd,n_tt_upd+num_u_not_d);
-            ht_temp(:,1:n_tt_upd) = ht_upd;
-            ht_upd = ht_temp;
+            ht_upd = [ht_upd ones(H_upd,num_u_not_d)];
             
             %Remove new created tracks that contain no single object hypotheses
             if ~isempty(ht_upd)
@@ -599,7 +594,6 @@ classdef PMBMfilter
             end
             obj.paras.MBM.ht = ht_upd;
         end
-
+        
     end
 end
-
