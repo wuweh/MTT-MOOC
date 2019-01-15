@@ -182,6 +182,21 @@ classdef PMBMfilter
                     obj.paras.MBM.ht(~idx,i) = obj.paras.MBM.ht(~idx,i) - 1;
                 end
             end
+            
+            %Merge duplicate hypothesis table rows
+            if ~isempty(obj.paras.MBM.ht)
+                [ht,~,ic] = unique(obj.paras.MBM.ht,'rows');
+                if(size(ht,1)~=size(obj.paras.MBM.ht,1))
+                    %There are duplicate entries
+                    w = zeros(1,size(ht,1));
+                    for i = 1:size(ht,1)
+                        indices_dupli = (ic==i);
+                        [~,w(i)] = normalizeLogWeights(obj.paras.MBM.w(indices_dupli));
+                    end
+                    obj.paras.MBM.ht = ht;
+                    obj.paras.MBM.w = w;
+                end
+            end
         end
         
         function obj = Bern_recycle(obj,recycle_threshold,merging_threshold)
@@ -239,6 +254,21 @@ classdef PMBMfilter
                 if any(idx)
                     obj.paras.MBM.ht(idx,i) = 0;
                     obj.paras.MBM.ht(~idx,i) = obj.paras.MBM.ht(~idx,i) - 1;
+                end
+            end
+            
+            %Merge duplicate hypothesis table rows
+            if ~isempty(obj.paras.MBM.ht)
+                [ht,~,ic] = unique(obj.paras.MBM.ht,'rows');
+                if(size(ht,1)~=size(obj.paras.MBM.ht,1))
+                    %There are duplicate entries
+                    w = zeros(1,size(ht,1));
+                    for i = 1:size(ht,1)
+                        indices_dupli = (ic==i);
+                        [~,w(i)] = normalizeLogWeights(obj.paras.MBM.w(indices_dupli));
+                    end
+                    obj.paras.MBM.ht = ht;
+                    obj.paras.MBM.w = w;
                 end
             end
             
