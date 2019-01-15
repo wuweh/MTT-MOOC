@@ -422,9 +422,19 @@ classdef PMBMfilter
             
             %measurement indices inside the gate
             used_meas = used_meas_d | used_meas_u;
-            z = z(:,used_meas);
-            m = size(z,2);
-            gating_matrix_d = cellfun(@(x) x(used_meas,:), gating_matrix_d, 'UniformOutput',false);
+            %find indices of measurements inside the gate of detected
+            %objects but not undetected objects
+            used_meas_d_not_u = used_meas > used_meas_u;
+            %find indices of measurements inside the gate of undetected
+            %objects but not detected objects
+            used_meas_u_not_d = used_meas > used_meas_d;
+            %find indices of measurements inside both the gate of detected
+            %undetected objects
+            used_meas_du = used_meas_d & used_meas_u;
+            
+            z_d = [z(:,used_meas_du) z(:,used_meas_d_not_u)];
+            m = size(z_d,2);
+            gating_matrix_d = cellfun(@(x) x(used_meas_du | used_meas_d_not_u,:), gating_matrix_d, 'UniformOutput',false);
             n_tt_upd = n_tt + m;                %number of tracks
             hypoTable = cell(n_tt_upd,1);       %initialise hypothesis table, one for each track
             for i = 1:n_tt
@@ -437,15 +447,15 @@ classdef PMBMfilter
                 for j = 1:num_hypo
                     %Perform gating for each single object hypothesis
                     Bern_temp = obj.paras.MBM.tt{i}(j);
-                    [~,gating_matrix_d{i}(:,j)] = obj.density.ellipsoidalGating(Bern_temp.state,z,measmodel,gating.size);
+                    [~,gating_matrix_d{i}(:,j)] = obj.density.ellipsoidalGating(Bern_temp.state,z_d,measmodel,gating.size);
                     %Missed detection
                     [hypoTable{i}{(j-1)*(m+1)+1},likTable{i}(j,1)] = Bern_undetected_update(obj,[i,j],sensormodel.P_D,gating.P_G);
                     %Update with measurement
                     likTable{i}(j,[false;logical(gating_matrix_d{i}(:,j))]) = ...
-                        Bern_detected_update_lik(obj,[i,j],z(:,logical(gating_matrix_d{i}(:,j))),measmodel,sensormodel.P_D);
+                        Bern_detected_update_lik(obj,[i,j],z_d(:,logical(gating_matrix_d{i}(:,j))),measmodel,sensormodel.P_D);
                     for jj = 1:m
                         if gating_matrix_d{i}(jj,j)
-                            hypoTable{i}{(j-1)*(m+1)+jj+1} = Bern_detected_update_state(obj,[i,j],z(:,jj),measmodel);
+                            hypoTable{i}{(j-1)*(m+1)+jj+1} = Bern_detected_update_state(obj,[i,j],z_d(:,jj),measmodel);
                         end
                     end
                 end
@@ -456,8 +466,17 @@ classdef PMBMfilter
             lik_new = -inf(m,1);
             %Create new tracks, one for each measurement inside the gate
             for i = 1:m
-                [hypoTable{n_tt+i,1}{1}, lik_new(i)] = PPP_detected_update(obj,z(:,i),measmodel,sensormodel.P_D,sensormodel.lambda_c*sensormodel.pdf_c);
+                if i <= length(find(used_meas_du))
+                    [hypoTable{n_tt+i,1}{1}, lik_new(i)] = PPP_detected_update(obj,z_d(:,i),measmodel,sensormodel.P_D,sensormodel.lambda_c*sensormodel.pdf_c);
+                else
+                    %For measurements not inside the gate of undetected
+                    %objects, create dummy tracks
+                    lik_new(i) = log(sensormodel.lambda_c*sensormodel.pdf_c);
+                    hypoTable{n_tt+i,1}{1}.r = 0;
+                    hypoTable{n_tt+i,1}{1}.state = [];
+                end
             end
+            
             %Cost matrix for first detection of undetected objects
             L2 = inf(m);
             L2(logical(eye(m))) = -lik_new;
@@ -524,7 +543,19 @@ classdef PMBMfilter
                         end
                     end
                 end
+                
             end
+            
+            %Append new tracks that created by measurements inside the gate
+            %of undetected objects but not detected objects
+            z_u_not_d = z(:,used_meas_u_not_d);
+            num_u_not_d = size(z_u_not_d,2);
+            for i = 1:num_u_not_d
+                [hypoTable{n_tt_upd+i,1}{1}, ~] = PPP_detected_update(obj,z_u_not_d(:,i),measmodel,sensormodel.P_D,sensormodel.lambda_c*sensormodel.pdf_c);
+            end
+            ht_temp = ones(H_upd,n_tt_upd+num_u_not_d);
+            ht_temp(:,1:n_tt_upd) = ht_upd;
+            ht_upd = ht_temp;
             
             %Remove new created tracks that contain no single object hypotheses
             if ~isempty(ht_upd)
