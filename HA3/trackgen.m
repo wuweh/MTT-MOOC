@@ -28,6 +28,7 @@ function [object_tracks] = trackgen(K,measmodel,motionmodel,sensormodel,birthmod
 %           tdeath: track end time (object disappear) time --- scalar
 %           x: object trajectory --- (object state dimension x time steps 
 %              object exists in the scen)
+%Note that if the number of tracks is zero, set the output to empty
 
 n = 0;
 
@@ -51,7 +52,7 @@ for k = 1:K
         time = k;
         xk = object_tracks(n,1).x;
         
-        xypos = measmodel.h(motionmodel.f(xk));
+        xypos = mvnrnd(measmodel.h(xk)', measmodel.R)';
         xpos = xypos(1);
         ypos = xypos(2);
         
@@ -79,3 +80,5 @@ end
 if n==0
     object_tracks = [];
 end 
+
+end
