@@ -82,23 +82,23 @@ classdef PHDfilter
             end
             
             %Alternative implementation
-%             for j = 1:m
-%                 num_objects_in_gate = sum(meas_in_gate_per_object(j,:));
-%                 states_idx = find(meas_in_gate_per_object(j,:)==1);
-%                 states_j = repmat(states_upd(1),[num_objects_in_gate,1]);
-%                 w_j = zeros(num_objects_in_gate,1);
-%                 for i = 1:num_objects_in_gate
-%                     [states_j(i),w_j(i)] = singleobjecthypothesis.detected...
-%                           (obj.density,obj.paras.states(states_idx(i)),z_ingate(:,j),measmodel,sensormodel.P_D);
-%                     w_j(i) = w_j(i) + obj.paras.w(states_idx(i));
-%                 end
-%                 
-%                 w_temp = [w_j;log(sensormodel.lambda_c)+log(sensormodel.pdf_c)];
-%                 w_temp = normalizeLogWeights(w_temp);
-%                 
-%                 w_upd = [w_upd;w_temp(1:end-1)];
-%                 states_upd = [states_upd;states_j];
-%             end
+            %             for j = 1:m
+            %                 num_objects_in_gate = sum(meas_in_gate_per_object(j,:));
+            %                 states_idx = find(meas_in_gate_per_object(j,:)==1);
+            %                 states_j = repmat(states_upd(1),[num_objects_in_gate,1]);
+            %                 w_j = zeros(num_objects_in_gate,1);
+            %                 for i = 1:num_objects_in_gate
+            %                     [states_j(i),w_j(i)] = singleobjecthypothesis.detected...
+            %                           (obj.density,obj.paras.states(states_idx(i)),z_ingate(:,j),measmodel,sensormodel.P_D);
+            %                     w_j(i) = w_j(i) + obj.paras.w(states_idx(i));
+            %                 end
+            %
+            %                 w_temp = [w_j;log(sensormodel.lambda_c)+log(sensormodel.pdf_c)];
+            %                 w_temp = normalizeLogWeights(w_temp);
+            %
+            %                 w_upd = [w_upd;w_temp(1:end-1)];
+            %                 states_upd = [states_upd;states_j];
+            %             end
             
             obj.paras.w = w_upd;
             obj.paras.states = states_upd;
@@ -115,38 +115,46 @@ classdef PHDfilter
             [obj.paras.w, obj.paras.states] = hypothesisReduction.cap(obj.paras.w, obj.paras.states, hypothesis_reduction.M);
         end
         
-        function estimates = stateExtraction(obj)
-            %STATEEXTRACTION extracts estimation from PPP intensity
-            %OUTPUT: estimates: estimated object states in matrix form of 
-            %                   size (object state dimension) x (number of objects)
+        function estimates = PHD_estimator(obj,threshold)
+            %PHD_ESTIMATOR performs object state estimation in the GMPHD filter
+            %INPUT: threshold (if exist): object states are extracted from
+            %       Gaussian components with weight no less than this threhold in Estimator 1.
+            %OUTPUT:estimates: estimated object states in matrix form of
+            %                  size (object state dimension) x (number of objects)
+            %%%
+            %In Estimator 1, we select the means of the Gaussians that have 
+            %weights greater than some threshold.
+            %In Estimator 2, we first obtain the estimated cardinality mean
+            %by summing up the weights of Gaussian components. The number of 
+            %objects is determined by the rounded nearest integer. The
+            %estimation is accurate when the object detection probability
+            %is high. 
             estimates = [];
-
-%             idx = find(obj.paras.w > log(0.5));
-%             if ~isempty(idx)
-%                 for j = 1:length(idx)
-%                     state = obj.density.expectedValue(obj.paras.states(idx(j)));
-%                     estimates = [estimates state];
-%                 end
-%             end
-            
-            %implementation suggested in Ba-Vo's GM-PHD paper
-%             idx = find(obj.paras.w > log(0.5));
-%             if ~isempty(idx)
-%                 for j = 1:length(idx)
-%                     repeat_num_targets= round(exp(obj.paras.w(idx(j))));
-%                     state = repmat(obj.density.expectedValue(obj.paras.states(idx(j))),[1,repeat_num_targets]);
-%                     estimates = [estimates state];
-%                 end
-%             end
-
-            %obtain the estimated cardinality mean. The estimation error is small if P_D is close to one.
-            n = round(sum(exp(obj.paras.w)));
-            %extract object states from the n components with the highest weights
-            if n > 0
-                [~,I] = sort(obj.paras.w,'descend');
-                for j = 1:n
-                    state = obj.density.expectedValue(obj.paras.states(I(j)));
-                    estimates = [estimates state];
+            if nargin == 2
+                %Estimator 1
+                %implementation proposed in Ba-Vo's GM-PHD paper
+                idx = find(obj.paras.w > log(threshold));
+                if ~isempty(idx)
+                    for j = 1:length(idx)
+                        %closely spaced Gaussian components might have been
+                        %merged, if w is too large, duplicate the state
+                        repeat_num_targets= round(exp(obj.paras.w(idx(j))));
+                        state = repmat(obj.density.expectedValue(obj.paras.states(idx(j))),[1,repeat_num_targets]);
+                        estimates = [estimates state];
+                    end
+                end
+            else
+                %Estimator 2
+                %obtain the estimated cardinality mean. The estimation error 
+                %is small if P_D is close to one.
+                n = round(sum(exp(obj.paras.w)));
+                %extract object states from the n components with the highest weights
+                if n > 0
+                    [~,I] = sort(obj.paras.w,'descend');
+                    for j = 1:n
+                        state = obj.density.expectedValue(obj.paras.states(I(j)));
+                        estimates = [estimates state];
+                    end
                 end
             end
         end

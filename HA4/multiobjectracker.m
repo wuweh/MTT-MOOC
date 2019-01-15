@@ -79,7 +79,7 @@ classdef multiobjectracker
                 %PPP approximation
                 PPP = componentReduction(PPP,obj.hypothesis_reduction);
                 %Extract state estimates from the PPP
-                estimates{k} = stateExtraction(PPP);
+                estimates{k} = PHD_estimator(PPP,0.5);
             end
 
         end

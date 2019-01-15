@@ -3,9 +3,9 @@ clear all; close all; clc
 dbstop if error
 
 %Choose object detection probability
-P_D = 0.9;
+P_D = 0.98;
 %Choose clutter rate
-lambda_c = 10;
+lambda_c = 5;
 %Choose object survival probability
 P_S = 0.99;
 

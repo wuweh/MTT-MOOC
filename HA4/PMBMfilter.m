@@ -280,9 +280,11 @@ classdef PMBMfilter
         function estimates = PMBM_estimator(obj,threshold)
             %PMBM_ESTIMATOR performs object state estimation in the PMBM filter
             %INPUT: threshold (if exist): object states are extracted from Bernoulli
-            %components with probability of existence no less than this
-            %threhold in Estimator 1. Given the probabilities of detection
-            %and survival, this threshold determines the number of consecutive misdetections
+            %       components with probability of existence no less than this
+            %       threhold in Estimator 1. Given the probabilities of detection
+            %       and survival, this threshold determines the number of consecutive misdetections
+            %OUTPUT:estimates: estimated object states in matrix form of 
+            %                  size (object state dimension) x (number of objects)
             %%%
             %In Estimator 1, we first select the global hypothesis
             %multi-Bernoulli mixture with highest weight. Then, we report
