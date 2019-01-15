@@ -1,7 +1,8 @@
-% A script used to simulate how to draw samples from Poisson, Bernoulli,
+% A script used to 1. simulate how to draw samples from Poisson, Bernoulli,
 % multi-Bernoulli and multi-Bernoulli mixture RFSs with possible uniform,
-% Gaussian or Gaussian mixture spatial distribution.
-close all
+% Gaussian or Gaussian mixture spatial distribution. 2. draw samples from 
+% RFS of objects (dynamic equations) to simulate object trajectories.
+close all;
 %% uniform distribution
 %inputArg1{i} specifies the interval of a uniform distribution, a d-by-2
 %matrix, where d is the dimension. The interval of the ith dimension is
@@ -205,3 +206,34 @@ r{2} = ones(M(2),1)*0.5;
 cardStemPlot(RFS, 0:10);
 instance2Dplot(RFS,multiBernoulliMixtureInstance);
 
+%% Generate object tracks
+%draw samples from RFS of objects (dynamic equations) to simulate object 
+%trajectories. Assume that a 2D measurement model is used.
+%Choose object detection probability
+clear
+
+%Choose object survival probability
+P_S = 0.99;
+%Choose range of surveillance area
+range_c = [-1000 1000;-1000 1000];
+sensor_model = modelgen.sensormodel(P_S,[],[],range_c);
+
+%Create linear motion model
+T = 1;
+sigma_q = 5;
+motion_model = motionmodel.cvmodel(T,sigma_q);
+
+%Create linear measurement model
+sigma_r = 10;
+meas_model = measmodel.cvmeasmodel(sigma_r);
+
+%Create ground truth model
+nbirths = 3;
+K = 100;
+birth_model = repmat(struct('w',0.03,'x',[],'P',100*eye(motion_model.d)),[1,nbirths]);
+birth_model(1).x  = [ 0; 0; 0; -10 ];
+birth_model(2).x  = [ 400; -600; -10; 5 ];
+birth_model(3).x  = [ -800; -200; 20; -5 ];
+
+%Generate object tracks
+[object_tracks] = trackgen(K,meas_model,motion_model,sensor_model,birth_model);
