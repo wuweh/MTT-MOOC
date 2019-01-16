@@ -77,8 +77,6 @@ switch(scenario_type)
         tbirth = zeros(nbirths,1);
         tdeath = zeros(nbirths,1);
         
-        initial_state = repmat(struct('w',0.03,'x',[],'P',100*diag([1 1 1 1*pi/90 1*pi/90].^2)),[1,nbirths]);
-        
         initial_state(1).x = [0; 0; 5; 0; pi/180];       tbirth(1) = 1;   tdeath(1) = 50;
         initial_state(2).x = [20; 20; -20; 0; pi/90];    tbirth(2) = 20;  tdeath(2) = 70;
         initial_state(3).x = [-20; 10; -10; 0; pi/360];  tbirth(3) = 40;  tdeath(3) = 90;
