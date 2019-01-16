@@ -47,14 +47,14 @@ classdef PHDfilter
             
             n = length(obj.paras.w);
             %perform gating for each mixture component
-            meas_in_gate_per_object = zeros(size(z,2),n);
+            meas_in_gate_per_object = false(size(z,2),n);
             for i = 1:n
                 [~,meas_in_gate_per_object(:,i)] = obj.density.ellipsoidalGating(obj.paras.states(i),z,measmodel,gating.size);
             end
             used_meas_idx = sum(meas_in_gate_per_object,2) >= 1;
             %returns a matrix with boolean element (j,i) specifying whether
             %measurement j falls inside the gate formed by component i
-            meas_in_gate_per_object = logical(meas_in_gate_per_object(used_meas_idx,:));
+            meas_in_gate_per_object = meas_in_gate_per_object(used_meas_idx,:);
             z_ingate = z(:,used_meas_idx);
             
             m = size(z_ingate,2);

@@ -103,6 +103,7 @@ classdef multiobjectracker
             PMBM = initialize(PMBM,obj.density,birthmodel);
             
             for k = 1:K
+                k
                 %PMBM prediction
                 PMBM = PMBM_predict(PMBM,motionmodel,birthmodel,sensormodel);
                 %PMBM update
@@ -112,9 +113,9 @@ classdef multiobjectracker
                 %Prune PPP components
                 PMBM = PPP_prune(PMBM,obj.hypothesis_reduction.wmin);
                 %Recycling
-                PMBM = Bern_recycle(PMBM,obj.hypothesis_reduction.r_recycle,obj.hypothesis_reduction.merging_threshold);
+%                 PMBM = Bern_recycle(PMBM,obj.hypothesis_reduction.r_recycle,obj.hypothesis_reduction.merging_threshold);
                 %Object state extraction
-                estimates{k} = PMBM_estimator(PMBM);
+                estimates{k} = PMBM_estimator(PMBM,0.5);
             end
             
         end

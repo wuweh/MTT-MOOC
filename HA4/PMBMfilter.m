@@ -72,9 +72,10 @@ classdef PMBMfilter
             %INPUT: tt_entry: a (2 x 1) array that specifies the index of single
             %                 object hypotheses. (i,j) indicates the jth
             %                 single object hypothesis in the ith track.
-            %       z: measurement vector --- (measurement dimension x 1)
+            %       z: measurement array --- (measurement dimension x number of measurements)
             %       P_D: object detection probability --- scalar
-            %OUTPUT:lik_detected: measurement update likelihood --- scalar in logarithmic scale
+            %OUTPUT:lik_detected: measurement update likelihood --- ...
+            %                    (number of measurements x 1) array in logarithmic scale
             Bern = obj.paras.MBM.tt{tt_entry(1)}(tt_entry(2));
             lik_detected = obj.density.predictedLikelihood(Bern.state,z,measmodel) + log(P_D*Bern.r);
         end
@@ -106,19 +107,21 @@ classdef PMBMfilter
             obj.paras.PPP.states = [obj.paras.PPP.states;rmfield(birthmodel,'w')'];
         end
         
-        function [Bern, lik_new] = PPP_detected_update(obj,z,measmodel,P_D,clutter_intensity)
+        function [Bern, lik_new] = PPP_detected_update(obj,indices,z,measmodel,P_D,clutter_intensity)
             %PPP_DETECTED_UPDATE creates a single object hypothesis by
             %updating the PPP with measurement and calculates the
             %corresponding likelihood.
             %INPUT: z: measurement vector --- (measurement dimension x 1)
             %       P_D: object detection probability --- scalar
             %       clutter_intensity: Poisson clutter intensity --- scalar
+            %       indices: boolean vector, if measurement z is inside the
+            %       gate of mixture component i, then indices(i) = true
             %OUTPUT:Bern: a struct that specifies a Bernoulli component,
             %             with fields: r: probability of existence --- scalar;
             %             state: a struct contains parameters describing the object pdf
             %       lik_new: measurement update likelihood of PPP --- scalar in logarithmic scale
-            state_upd = arrayfun(@(x) obj.density.update(x,z,measmodel), obj.paras.PPP.states);
-            w_upd = arrayfun(@(x) obj.density.predictedLikelihood(x,z,measmodel), obj.paras.PPP.states) + obj.paras.PPP.w + log(P_D);
+            state_upd = arrayfun(@(x) obj.density.update(x,z,measmodel), obj.paras.PPP.states(indices));
+            w_upd = arrayfun(@(x) obj.density.predictedLikelihood(x,z,measmodel), obj.paras.PPP.states(indices)) + obj.paras.PPP.w(indices) + log(P_D);
             C = sum(exp(w_upd));
             lik_new = log(C + clutter_intensity);
             Bern.r = C/(C + clutter_intensity);
@@ -317,9 +320,10 @@ classdef PMBMfilter
                 %Estimator 2
                 num_mb = length(obj.paras.MBM.w);
                 r = cell(num_mb,1);
+                n = size(obj.paras.MBM.ht,2);
                 for i = 1:num_mb
                     ht = obj.paras.MBM.ht(i,:);
-                    for j = 1:length(ht)
+                    for j = 1:n
                         if ht(j)~=0
                             Bern = obj.paras.MBM.tt{j}(ht(j));
                             r{i} = [r{i};Bern.r];
@@ -394,15 +398,15 @@ classdef PMBMfilter
             %       wmin: hypothesis weight pruning threshold --- scalar in logarithmic scale
             %       M: maximum global hypotheses kept
             
-            %Update detected objects
             m = size(z,2);                      %number of measurements received
             
             used_meas_u = false(m,1);           %measurement indices inside the gate of undetected objects
             nu = length(obj.paras.PPP.states);  %number of mixture components in PPP intensity
+            gating_matrix_u = false(m,nu);
             for i = 1:nu
                 %Perform gating for each mixture component in the PPP intensity
-                [~,temp] = obj.density.ellipsoidalGating(obj.paras.PPP.states(i),z,measmodel,gating.size);
-                used_meas_u = used_meas_u | temp;
+                [~,gating_matrix_u(:,i)] = obj.density.ellipsoidalGating(obj.paras.PPP.states(i),z,measmodel,gating.size);
+                used_meas_u = used_meas_u | gating_matrix_u(:,i);
             end
             
             n_tt = length(obj.paras.MBM.tt);    %number of pre-existing tracks
@@ -434,6 +438,7 @@ classdef PMBMfilter
             %undetected objects
             used_meas_du = used_meas_d & used_meas_u;
             
+            %Update detected objects
             %obtain measurements that are inside the gate of detected objects
             z_d = [z(:,used_meas_du) z(:,used_meas_d_not_u)];
             m = size(z_d,2);
@@ -451,8 +456,8 @@ classdef PMBMfilter
                     %Missed detection
                     [hypoTable{i}{(j-1)*(m+1)+1},likTable{i}(j,1)] = Bern_undetected_update(obj,[i,j],sensormodel.P_D,gating.P_G);
                     %Update with measurement
-                    likTable{i}(j,[false;logical(gating_matrix_d{i}(:,j))]) = ...
-                        Bern_detected_update_lik(obj,[i,j],z_d(:,logical(gating_matrix_d{i}(:,j))),measmodel,sensormodel.P_D);
+                    likTable{i}(j,[false;gating_matrix_d{i}(:,j)]) = ...
+                        Bern_detected_update_lik(obj,[i,j],z_d(:,gating_matrix_d{i}(:,j)),measmodel,sensormodel.P_D);
                     for jj = 1:m
                         if gating_matrix_d{i}(jj,j)
                             hypoTable{i}{(j-1)*(m+1)+jj+1} = Bern_detected_update_state(obj,[i,j],z_d(:,jj),measmodel);
@@ -464,10 +469,12 @@ classdef PMBMfilter
             %%%
             %Update undetected objects
             lik_new = -inf(m,1);
+            gating_matrix_ud = [gating_matrix_u(used_meas_du,:);gating_matrix_u(used_meas_d_not_u,:)];
             %Create new tracks, one for each measurement inside the gate
             for i = 1:m
                 if i <= length(find(used_meas_du))
-                    [hypoTable{n_tt+i,1}{1}, lik_new(i)] = PPP_detected_update(obj,z_d(:,i),measmodel,sensormodel.P_D,sensormodel.lambda_c*sensormodel.pdf_c);
+                    [hypoTable{n_tt+i,1}{1}, lik_new(i)] = ...
+                        PPP_detected_update(obj,gating_matrix_ud(i,:),z_d(:,i),measmodel,sensormodel.P_D,sensormodel.lambda_c*sensormodel.pdf_c);
                 else
                     %For measurements not inside the gate of undetected
                     %objects, create dummy tracks
@@ -519,11 +526,11 @@ classdef PMBMfilter
                     for j = 1:length(gainBest)
                         H_upd = H_upd + 1;
                         for i = 1:n_tt
-                            idx = find(col4rowBest(:,j)==i, 1);
                             if obj.paras.MBM.ht(h,i) == 0
                                 %do nothing for null single object hypothesis (r = 0)
                                 ht_upd(H_upd,i) = 0;
                             else
+                                idx = find(col4rowBest(:,j)==i, 1);
                                 if isempty(idx)
                                     %missed detection
                                     ht_upd(H_upd,i) = (obj.paras.MBM.ht(h,i)-1)*(m+1)+1;
@@ -549,8 +556,9 @@ classdef PMBMfilter
             %of undetected objects but not detected objects
             z_u_not_d = z(:,used_meas_u_not_d);
             num_u_not_d = size(z_u_not_d,2);
+            gating_matrix_u_not_d = gating_matrix_u(used_meas_u_not_d,:);
             for i = 1:num_u_not_d
-                [hypoTable{n_tt_upd+i,1}{1}, ~] = PPP_detected_update(obj,z_u_not_d(:,i),measmodel,sensormodel.P_D,sensormodel.lambda_c*sensormodel.pdf_c);
+                [hypoTable{n_tt_upd+i,1}{1}, ~] = PPP_detected_update(obj,gating_matrix_u_not_d(i,:),z_u_not_d(:,i),measmodel,sensormodel.P_D,sensormodel.lambda_c*sensormodel.pdf_c);
             end
             ht_upd = [ht_upd ones(H_upd,num_u_not_d)];
             
