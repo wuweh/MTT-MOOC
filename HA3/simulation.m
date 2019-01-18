@@ -140,22 +140,22 @@ legend([h1 h2],'Ground Truth','PHD', 'Location', 'best')
 %GOSPA plot
 c = 100;
 p = 1;
-gospa = zeros(K,4);
+d_gospa = zeros(K,1);
 for k = 1:K
     %Evaluate kinematics estimation performance using GOSPA metric
-    gospa(k,:) = GOSPAmetric(GMPHDestimates{k},objectdata.X{k},c,p);
+    [d_gospa(k), ~, decomposed_cost(k)] = GOSPA(GMPHDestimates{k}, objectdata.X{k}, p, c, 2);
 end
 
 figure
 subplot(4,1,1)
-plot(1:K,gospa(:,1),'linewidth',2)
+plot(1:K,d_gospa,'linewidth',2)
 ylabel('GOSPA')
 subplot(4,1,2)
-plot(1:K,gospa(:,2),'linewidth',2)
+plot(1:K,[decomposed_cost.localisation],'linewidth',2)
 ylabel('Kinematics')
 subplot(4,1,3)
-plot(1:K,gospa(:,3),'linewidth',2)
-ylabel('# Miss')
+plot(1:K,[decomposed_cost.missed],'linewidth',2)
+ylabel('Missed')
 subplot(4,1,4)
-plot(1:K,gospa(:,4),'linewidth',2)
-xlabel('Time Step'); ylabel('# False')
+plot(1:K,[decomposed_cost.false],'linewidth',2)
+xlabel('Time Step'); ylabel('False')

@@ -97,11 +97,11 @@ measdata = measdatagen(objectdata,sensor_model,meas_model);
 
 %% Object tracker parameter setting
 P_G = 0.999;            %gating size in percentage
-wmin = 1e-5;            %hypothesis pruning threshold
+wmin = 1e-4;            %hypothesis pruning threshold
 merging_threshold = 4;  %hypothesis merging threshold
 M = 100;                %maximum number of hypotheses kept
-rmin = 1e-5;            %Bernoulli component pruning threshold
-r_recycle = 1e-3;       %Bernoulli component recycling threshold
+rmin = 1e-4;            %Bernoulli component pruning threshold
+r_recycle = 1e-1;       %Bernoulli component recycling threshold
 density_class_handle = @GaussianDensity;    %density class handle
 tracker = multiobjectracker();
 tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_threshold,M,rmin,r_recycle);
@@ -147,33 +147,33 @@ legend([h1 h2 h3],'Ground Truth','PHD','PMBM', 'Location', 'best')
 %GOSPA plot
 c = 100;
 p = 1;
-GMPHDgospa = zeros(K,4);
-PMBMgospa = zeros(K,4);
+GMPHD_d_gospa = zeros(K,1);
+PMBM_d_gospa = zeros(K,1);
 for k = 1:K
     %Evaluate kinematics estimation performance using GOSPA metric
-    GMPHDgospa(k,:) = GOSPAmetric(GMPHDestimates{k},objectdata.X{k},c,p);
-    PMBMgospa(k,:) = GOSPAmetric(PMBMestimates{k},objectdata.X{k},c,p);
+    [GMPHD_d_gospa(k), ~, GMPHD_decomposed_cost(k)] = GOSPA(objectdata.X{k}, GMPHDestimates{k}, p, c, 2);
+    [PMBM_d_gospa(k), ~, PMBM_decomposed_cost(k)] = GOSPA(objectdata.X{k}, PMBMestimates{k}, p, c, 2);
 end
 
 figure
 subplot(4,1,1)
 hold on
-plot(1:K,GMPHDgospa(:,1),'linewidth',2)
-plot(1:K,PMBMgospa(:,1),'linewidth',2)
+plot(1:K,GMPHD_d_gospa,'linewidth',2)
+plot(1:K,PMBM_d_gospa,'linewidth',2)
 legend('PHD','PMBM','location','best')
 ylabel('GOSPA')
 subplot(4,1,2)
 hold on
-plot(1:K,GMPHDgospa(:,2),'linewidth',2)
-plot(1:K,PMBMgospa(:,2),'linewidth',2)
+plot(1:K,[GMPHD_decomposed_cost.localisation],'linewidth',2)
+plot(1:K,[PMBM_decomposed_cost.localisation],'linewidth',2)
 ylabel('Kinematics')
 subplot(4,1,3)
 hold on
-plot(1:K,GMPHDgospa(:,3),'linewidth',2)
-plot(1:K,PMBMgospa(:,3),'linewidth',2)
-ylabel('# Miss')
+plot(1:K,[GMPHD_decomposed_cost.missed],'linewidth',2)
+plot(1:K,[PMBM_decomposed_cost.missed],'linewidth',2)
+ylabel('Missed')
 subplot(4,1,4)
 hold on
-plot(1:K,GMPHDgospa(:,4),'linewidth',2)
-plot(1:K,PMBMgospa(:,4),'linewidth',2)
-xlabel('Time Step'); ylabel('# False')
+plot(1:K,[GMPHD_decomposed_cost.false],'linewidth',2)
+plot(1:K,[PMBM_decomposed_cost.false],'linewidth',2)
+xlabel('Time Step'); ylabel('False')
