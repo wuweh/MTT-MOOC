@@ -202,83 +202,83 @@ classdef PMBMfilter
             end
         end
         
-%         function obj = Bern_recycle(obj,recycle_threshold,merging_threshold)
-%             %BERN_RECYCLE recycles Bernoulli components with small
-%             %probability of existence, add them to the PPP component, and
-%             %re-index the hypothesis table. If a track contains no single
-%             %object hypothesis after pruning, this track is removed. After
-%             %recycling, merge similar Gaussian components in the PPP intensity
-%             %INPUT: recycle_threshold: Bernoulli components with probability
-%             %                          of existence smaller than this threshold
-%             %                          needed to be recycled --- scalar
-%             %       merging_threshold: merging threshold used in method
-%             %                          GaussianDensity.mixtureReduction --- scalar
-%             n_tt = length(obj.paras.MBM.tt);
-%             for i = 1:n_tt
-%                 idx = arrayfun(@(x) x.r<recycle_threshold, obj.paras.MBM.tt{i});
-%                 %Here, we should also consider the weights of different MBs
-%                 idx_t = find(idx);
-%                 n_h = length(idx_t);
-%                 w_h = zeros(n_h,1);
-%                 for j = 1:n_h
-%                     idx_h = obj.paras.MBM.ht(:,i) == idx_t(j);
-%                     [~,w_h(j)] = normalizeLogWeights(obj.paras.MBM.w(idx_h));
-%                 end
-%                 %Recycle
-%                 temp = obj.paras.MBM.tt{i}(idx);
-%                 obj.paras.PPP.w = [obj.paras.PPP.w;log([temp.r]')+w_h];
-%                 obj.paras.PPP.states = [obj.paras.PPP.states;[temp.state]'];
-%                 %Remove Bernoullis
-%                 obj.paras.MBM.tt{i} = obj.paras.MBM.tt{i}(~idx);
-%                 %Update hypothesis table, if a Bernoulli component is
-%                 %pruned, set its corresponding entry to zero
-%                 idx = find(idx);
-%                 for j = 1:length(idx)
-%                     temp = obj.paras.MBM.ht(:,i);
-%                     temp(temp==idx(j)) = 0;
-%                     obj.paras.MBM.ht(:,i) = temp;
-%                 end
-%             end
-%             
-%             %Remove tracks that contains only null single object hypotheses
-%             idx = sum(obj.paras.MBM.ht,1)~=0;
-%             obj.paras.MBM.ht = obj.paras.MBM.ht(:,idx);
-%             obj.paras.MBM.tt = obj.paras.MBM.tt(idx);
-%             if isempty(obj.paras.MBM.ht)
-%                 obj.paras.MBM.w = [];
-%             end
-%             
-%             %Re-index hypothesis table
-%             n_tt = length(obj.paras.MBM.tt);
-%             for i = 1:n_tt
-%                 idx = obj.paras.MBM.ht(:,i)==0;
-%                 [~,~,obj.paras.MBM.ht(:,i)] = unique(obj.paras.MBM.ht(:,i),'rows');
-%                 if any(idx)
-%                     obj.paras.MBM.ht(idx,i) = 0;
-%                     obj.paras.MBM.ht(~idx,i) = obj.paras.MBM.ht(~idx,i) - 1;
-%                 end
-%             end
-%             
-%             %Merge duplicate hypothesis table rows
-%             if ~isempty(obj.paras.MBM.ht)
-%                 [ht,~,ic] = unique(obj.paras.MBM.ht,'rows');
-%                 if(size(ht,1)~=size(obj.paras.MBM.ht,1))
-%                     %There are duplicate entries
-%                     w = zeros(size(ht,1),1);
-%                     for i = 1:size(ht,1)
-%                         indices_dupli = (ic==i);
-%                         [~,w(i)] = normalizeLogWeights(obj.paras.MBM.w(indices_dupli));
-%                     end
-%                     obj.paras.MBM.ht = ht;
-%                     obj.paras.MBM.w = w;
-%                 end
-%             end
-%             
-%             %Merge similar Gaussian components in the PPP intensity
-%             if ~isempty(obj.paras.PPP.w)
-%                 [obj.paras.PPP.w,obj.paras.PPP.states] = obj.density.mixtureReduction(obj.paras.PPP.w,obj.paras.PPP.states,merging_threshold);
-%             end
-%         end
+        function obj = Bern_recycle(obj,recycle_threshold,merging_threshold)
+            %BERN_RECYCLE recycles Bernoulli components with small
+            %probability of existence, add them to the PPP component, and
+            %re-index the hypothesis table. If a track contains no single
+            %object hypothesis after pruning, this track is removed. After
+            %recycling, merge similar Gaussian components in the PPP intensity
+            %INPUT: recycle_threshold: Bernoulli components with probability
+            %                          of existence smaller than this threshold
+            %                          needed to be recycled --- scalar
+            %       merging_threshold: merging threshold used in method
+            %                          GaussianDensity.mixtureReduction --- scalar
+            n_tt = length(obj.paras.MBM.tt);
+            for i = 1:n_tt
+                idx = arrayfun(@(x) x.r<recycle_threshold, obj.paras.MBM.tt{i});
+                %Here, we should also consider the weights of different MBs
+                idx_t = find(idx);
+                n_h = length(idx_t);
+                w_h = zeros(n_h,1);
+                for j = 1:n_h
+                    idx_h = obj.paras.MBM.ht(:,i) == idx_t(j);
+                    [~,w_h(j)] = normalizeLogWeights(obj.paras.MBM.w(idx_h));
+                end
+                %Recycle
+                temp = obj.paras.MBM.tt{i}(idx);
+                obj.paras.PPP.w = [obj.paras.PPP.w;log([temp.r]')+w_h];
+                obj.paras.PPP.states = [obj.paras.PPP.states;[temp.state]'];
+                %Remove Bernoullis
+                obj.paras.MBM.tt{i} = obj.paras.MBM.tt{i}(~idx);
+                %Update hypothesis table, if a Bernoulli component is
+                %pruned, set its corresponding entry to zero
+                idx = find(idx);
+                for j = 1:length(idx)
+                    temp = obj.paras.MBM.ht(:,i);
+                    temp(temp==idx(j)) = 0;
+                    obj.paras.MBM.ht(:,i) = temp;
+                end
+            end
+            
+            %Remove tracks that contains only null single object hypotheses
+            idx = sum(obj.paras.MBM.ht,1)~=0;
+            obj.paras.MBM.ht = obj.paras.MBM.ht(:,idx);
+            obj.paras.MBM.tt = obj.paras.MBM.tt(idx);
+            if isempty(obj.paras.MBM.ht)
+                obj.paras.MBM.w = [];
+            end
+            
+            %Re-index hypothesis table
+            n_tt = length(obj.paras.MBM.tt);
+            for i = 1:n_tt
+                idx = obj.paras.MBM.ht(:,i)==0;
+                [~,~,obj.paras.MBM.ht(:,i)] = unique(obj.paras.MBM.ht(:,i),'rows');
+                if any(idx)
+                    obj.paras.MBM.ht(idx,i) = 0;
+                    obj.paras.MBM.ht(~idx,i) = obj.paras.MBM.ht(~idx,i) - 1;
+                end
+            end
+            
+            %Merge duplicate hypothesis table rows
+            if ~isempty(obj.paras.MBM.ht)
+                [ht,~,ic] = unique(obj.paras.MBM.ht,'rows');
+                if(size(ht,1)~=size(obj.paras.MBM.ht,1))
+                    %There are duplicate entries
+                    w = zeros(size(ht,1),1);
+                    for i = 1:size(ht,1)
+                        indices_dupli = (ic==i);
+                        [~,w(i)] = normalizeLogWeights(obj.paras.MBM.w(indices_dupli));
+                    end
+                    obj.paras.MBM.ht = ht;
+                    obj.paras.MBM.w = w;
+                end
+            end
+            
+            %Merge similar Gaussian components in the PPP intensity
+            if ~isempty(obj.paras.PPP.w)
+                [obj.paras.PPP.w,obj.paras.PPP.states] = obj.density.mixtureReduction(obj.paras.PPP.w,obj.paras.PPP.states,merging_threshold);
+            end
+        end
         
         function estimates = PMBM_estimator(obj,threshold)
             %PMBM_ESTIMATOR performs object state estimation in the PMBM filter
@@ -488,9 +488,6 @@ classdef PMBMfilter
             L2 = inf(m);
             L2(logical(eye(m))) = -lik_new;
             
-            %Update undetected objects with missed detection
-            obj = PPP_undetected_update(obj,sensormodel.P_D,gating.P_G);
-            
             %%%
             %Update global hypothesis
             w_upd = [];             %initialise global hypothesis weight
@@ -565,6 +562,9 @@ classdef PMBMfilter
                 [hypoTable{n_tt_upd+i,1}{1}, ~] = PPP_detected_update(obj,gating_matrix_u_not_d(i,:),z_u_not_d(:,i),measmodel,sensormodel.P_D,sensormodel.lambda_c*sensormodel.pdf_c);
             end
             ht_upd = [ht_upd ones(H_upd,num_u_not_d)];
+            
+            %Update undetected objects with missed detection
+            obj = PPP_undetected_update(obj,sensormodel.P_D,gating.P_G);
             
             %Remove new created tracks that contain no single object hypotheses
             if ~isempty(ht_upd)

@@ -5,7 +5,7 @@ dbstop if error
 %Choose object detection probability
 P_D = 0.98;
 %Choose clutter rate
-lambda_c = 5;
+lambda_c = 30;
 %Choose object survival probability
 P_S = 0.99;
 

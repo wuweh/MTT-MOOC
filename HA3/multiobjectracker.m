@@ -66,14 +66,14 @@ classdef multiobjectracker
             PPP = initialize(PPP,obj.density,birthmodel);
             
             for k = 1:K
-                %PPP prediction
-                PPP = predict(PPP,motionmodel,sensormodel.P_S,birthmodel);
                 %PPP update
                 PPP = update(PPP,Z{k},measmodel,sensormodel,obj.gating);
                 %PPP approximation
                 PPP = componentReduction(PPP,obj.hypothesis_reduction);
                 %Extract state estimates from the PPP
-                estimates{k} = PHD_estimator(PPP);
+                estimates{k} = PHD_estimator(PPP,0.5);
+                %PPP prediction
+                PPP = predict(PPP,motionmodel,sensormodel.P_S,birthmodel);
             end
 
         end

@@ -109,6 +109,8 @@ classdef multiobjectracker
                 PMBM = PPP_prune(PMBM,obj.hypothesis_reduction.wmin);
                 %Object state extraction
                 estimates{k} = PMBM_estimator(PMBM,0.5);
+                %Recycling
+%                 PMBM = Bern_recycle(PMBM,0.1,4);
                 %PMBM prediction
                 PMBM = PMBM_predict(PMBM,motionmodel,birthmodel,sensormodel);
             end
