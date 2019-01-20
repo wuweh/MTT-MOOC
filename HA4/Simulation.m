@@ -5,7 +5,7 @@ dbstop if error
 %Choose object detection probability
 P_D = 0.98;
 %Choose clutter rate
-lambda_c = 30;
+lambda_c = 5;
 %Choose object survival probability
 P_S = 0.99;
 
@@ -101,10 +101,9 @@ wmin = 1e-4;            %hypothesis pruning threshold
 merging_threshold = 4;  %hypothesis merging threshold
 M = 100;                %maximum number of hypotheses kept
 rmin = 1e-4;            %Bernoulli component pruning threshold
-r_recycle = 1e-1;       %Bernoulli component recycling threshold
 density_class_handle = @GaussianDensity;    %density class handle
 tracker = multiobjectracker();
-tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_threshold,M,rmin,r_recycle);
+tracker = tracker.initialize(density_class_handle,P_G,meas_model.d,wmin,merging_threshold,M,rmin);
 
 %% GM-PHD filter
 GMPHDestimates = GMPHDtracker(tracker, birth_model, measdata, sensor_model, motion_model, meas_model);
@@ -150,6 +149,8 @@ p = 1;
 GMPHD_d_gospa = zeros(K,1);
 PMBM_d_gospa = zeros(K,1);
 for k = 1:K
+    if isempty(GMPHDestimates{k}); GMPHDestimates{k} = zeros(motion_model.d,0); end
+    if isempty(PMBMestimates{k}); PMBMestimates{k} = zeros(motion_model.d,0); end
     %Evaluate kinematics estimation performance using GOSPA metric
     [GMPHD_d_gospa(k), ~, GMPHD_decomposed_cost(k)] = GOSPA(objectdata.X{k}, GMPHDestimates{k}, p, c, 2);
     [PMBM_d_gospa(k), ~, PMBM_decomposed_cost(k)] = GOSPA(objectdata.X{k}, PMBMestimates{k}, p, c, 2);

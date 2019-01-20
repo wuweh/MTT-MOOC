@@ -97,8 +97,8 @@ objectdata = objectdatagen(ground_truth,motion_model,ifnoisy);
 measdata = measdatagen(objectdata,sensor_model,meas_model);
 
 %% Object tracker parameter setting
-P_G = 0.9999999;            %gating size in percentage
-wmin = 1e-5;            %hypothesis pruning threshold
+P_G = 0.999;            %gating size in percentage
+wmin = 1e-4;            %hypothesis pruning threshold
 merging_threshold = 4;  %hypothesis merging threshold
 M = 100;                %maximum number of hypotheses kept in PHD
 density_class_handle = @GaussianDensity;    %density class handle
@@ -142,6 +142,7 @@ c = 100;
 p = 1;
 d_gospa = zeros(K,1);
 for k = 1:K
+    if isempty(GMPHDestimates{k}); GMPHDestimates{k} = zeros(motion_model.d,0); end
     %Evaluate kinematics estimation performance using GOSPA metric
     [d_gospa(k), ~, decomposed_cost(k)] = GOSPA(GMPHDestimates{k}, objectdata.X{k}, p, c, 2);
 end

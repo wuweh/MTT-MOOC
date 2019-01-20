@@ -25,7 +25,7 @@ classdef multiobjectracker
     
     methods
         
-        function obj = initialize(obj,density_class_handle,P_G,m_d,wmin,merging_threshold,M,rmin,r_recycle)
+        function obj = initialize(obj,density_class_handle,P_G,m_d,wmin,merging_threshold,M,rmin)
             %INITIATOR initializes singleobjectracker class
             %INPUT: density_class_handle: density class handle
             %       P_G: gating size in decimal --- scalar
@@ -42,7 +42,6 @@ classdef multiobjectracker
             %         obj.hypothesis_reduction.merging_threshold: merging threshold --- scalar
             %         obj.hypothesis_reduction.M: allowed maximum number of hypotheses --- scalar
             %         obj.hypothesis_reduction.rmin: allowed minimum object's probability of existence --- scalar
-            %         obj.hypothesis_reduction.r_recycle: recycling threshold --- scalar
             obj.density = feval(density_class_handle);
             obj.gating.P_G = P_G;
             obj.gating.size = chi2inv(obj.gating.P_G,m_d);
@@ -50,7 +49,6 @@ classdef multiobjectracker
             obj.hypothesis_reduction.merging_threshold = merging_threshold;
             obj.hypothesis_reduction.M = M;
             obj.hypothesis_reduction.rmin = rmin;
-            obj.hypothesis_reduction.r_recycle = r_recycle;
         end
         
         function estimates = GMPHDtracker(obj, birthmodel, Z, sensormodel, motionmodel, measmodel)
@@ -72,14 +70,14 @@ classdef multiobjectracker
             PPP = initialize(PPP,obj.density,birthmodel);
             
             for k = 1:K
-                %PPP prediction
-                PPP = predict(PPP,motionmodel,sensormodel.P_S,birthmodel);
                 %PPP update
                 PPP = update(PPP,Z{k},measmodel,sensormodel,obj.gating);
                 %PPP approximation
                 PPP = componentReduction(PPP,obj.hypothesis_reduction);
                 %Extract state estimates from the PPP
                 estimates{k} = PHD_estimator(PPP,0.5);
+                %PPP prediction
+                PPP = predict(PPP,motionmodel,sensormodel.P_S,birthmodel);
             end
 
         end
@@ -103,18 +101,16 @@ classdef multiobjectracker
             PMBM = initialize(PMBM,obj.density,birthmodel);
             
             for k = 1:K
-                %PMBM prediction
-                PMBM = PMBM_predict(PMBM,motionmodel,birthmodel,sensormodel);
                 %PMBM update
                 PMBM = PMBM_update(PMBM,Z{k},measmodel,sensormodel,obj.gating,obj.hypothesis_reduction.wmin,obj.hypothesis_reduction.M);
                 %Prune Bernoulli components
                 PMBM = Bern_prune(PMBM,obj.hypothesis_reduction.rmin);
                 %Prune PPP components
                 PMBM = PPP_prune(PMBM,obj.hypothesis_reduction.wmin);
-                %Recycling
-%                 PMBM = Bern_recycle(PMBM,obj.hypothesis_reduction.r_recycle,obj.hypothesis_reduction.merging_threshold);
                 %Object state extraction
-                estimates{k} = PMBM_estimator(PMBM);
+                estimates{k} = PMBM_estimator(PMBM,0.5);
+                %PMBM prediction
+                PMBM = PMBM_predict(PMBM,motionmodel,birthmodel,sensormodel);
             end
             
         end
