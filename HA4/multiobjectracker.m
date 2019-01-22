@@ -25,7 +25,7 @@ classdef multiobjectracker
     
     methods
         
-        function obj = initialize(obj,density_class_handle,P_G,m_d,wmin,merging_threshold,M,rmin)
+        function obj = initialize(obj,density_class_handle,P_G,m_d,wmin,merging_threshold,M,rmin,r_recycle)
             %INITIATOR initializes singleobjectracker class
             %INPUT: density_class_handle: density class handle
             %       P_G: gating size in decimal --- scalar
@@ -42,6 +42,7 @@ classdef multiobjectracker
             %         obj.hypothesis_reduction.merging_threshold: merging threshold --- scalar
             %         obj.hypothesis_reduction.M: allowed maximum number of hypotheses --- scalar
             %         obj.hypothesis_reduction.rmin: allowed minimum object's probability of existence --- scalar
+            %         obj.obj.hypothesis_reduction.r_recycle : recycling threshold --- scalar
             obj.density = feval(density_class_handle);
             obj.gating.P_G = P_G;
             obj.gating.size = chi2inv(obj.gating.P_G,m_d);
@@ -49,6 +50,7 @@ classdef multiobjectracker
             obj.hypothesis_reduction.merging_threshold = merging_threshold;
             obj.hypothesis_reduction.M = M;
             obj.hypothesis_reduction.rmin = rmin;
+            obj.hypothesis_reduction.r_recycle = r_recycle;
         end
         
         function estimates = GMPHDtracker(obj, birthmodel, Z, sensormodel, motionmodel, measmodel)
@@ -110,7 +112,7 @@ classdef multiobjectracker
                 %Object state extraction
                 estimates{k} = PMBM_estimator(PMBM,0.5);
                 %Recycling
-%                 PMBM = Bern_recycle(PMBM,0.1,4);
+                PMBM = Bern_recycle(PMBM,obj.hypothesis_reduction.r_recycle,obj.hypothesis_reduction.merging_threshold);
                 %PMBM prediction
                 PMBM = PMBM_predict(PMBM,motionmodel,birthmodel,sensormodel);
             end
