@@ -34,7 +34,7 @@ for sol= 2:numIteration
         currsoln(var)= idxold(currsoln(var));
     end
     assignments(:,sol)= currsoln;
-    costs(sol)= sum((sub2ind(size(C),1:n,currsoln)));
+    costs(sol)= sum(C(sub2ind(size(C),1:n,currsoln)));
 end
 [unique_assignments,I,~]= unique(assignments','rows');
 assignments= unique_assignments';

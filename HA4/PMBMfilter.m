@@ -520,8 +520,13 @@ classdef PMBMfilter
                     end
                     %Cost matrix of size m-by-(n+m)
                     L = [L1 L2];
+                    
                     %Obtain M best assignments using Murty's algorithm
-                    [col4rowBest,~,gainBest]=kBest2DAssign(L,ceil(exp(obj.paras.MBM.w(h)+log(M))));
+%                     [col4rowBest,~,gainBest] = kBest2DAssign(L,ceil(exp(obj.paras.MBM.w(h)+log(M))));
+                    
+                    %Obtain M best assignments using Gibbs sampling
+                    [col4rowBest,gainBest] = assign2DByGibbs(L,100,ceil(exp(obj.paras.MBM.w(h)+log(M))));
+                    
                     w_upd = [w_upd;-gainBest+lik_temp+obj.paras.MBM.w(h)];
                     %Update global hypothesis look-up table
                     for j = 1:length(gainBest)
